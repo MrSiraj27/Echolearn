@@ -1,0 +1,27 @@
+services:
+  - type: web
+    name: echolearn-backend
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    plan: free
+    disk:
+      name: echolearn-data
+      mountPath: /data
+      sizeGB: 1
+    envVars:
+      - key: DATABASE_URL
+        sync: false
+      - key: JWT_SECRET
+        generateValue: true
+      - key: GROQ_API_KEY
+        sync: false
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: RESEND_API_KEY
+        sync: false
+      - key: FRONTEND_URL
+        sync: false
+      - key: STORAGE_PATH
+        value: /data/storage
+      - key: CHROMA_PATH
+        value: /data/chroma
