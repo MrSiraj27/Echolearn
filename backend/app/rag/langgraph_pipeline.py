@@ -53,7 +53,11 @@ def rewrite_query_node(state: RagState) -> RagState:
     )
     try:
         rewritten = chat_completion(
-            [{"role": "user", "content": prompt}], model=REWRITE_MODEL, temperature=0.0
+            [{"role": "user", "content": prompt}],
+            model=REWRITE_MODEL,
+            temperature=0.0,
+            purpose="query_rewrite",
+            user_id=uuid.UUID(state["user_id"]),
         ).strip()
         return {"rewritten_query": rewritten or state["question"]}
     except Exception:
@@ -111,7 +115,11 @@ def grade_relevance_node(state: RagState) -> RagState:
     prompt = RELEVANCE_GRADE_PROMPT.format(question=state["question"], excerpts=excerpts)
     try:
         verdict = chat_completion(
-            [{"role": "user", "content": prompt}], model=REWRITE_MODEL, temperature=0.0
+            [{"role": "user", "content": prompt}],
+            model=REWRITE_MODEL,
+            temperature=0.0,
+            purpose="relevance_grade",
+            user_id=uuid.UUID(state["user_id"]),
         ).strip().lower()
         return {"has_relevant_context": verdict.startswith("yes")}
     except Exception:
@@ -198,7 +206,9 @@ def generate_answer_node(state: RagState) -> RagState:
     messages = build_answer_messages(state)
 
     try:
-        answer = chat_completion(messages, model=ANSWER_MODEL, temperature=0.2, purpose="chat_answer")
+        answer = chat_completion(
+            messages, model=ANSWER_MODEL, temperature=0.2, purpose="chat_answer", user_id=uuid.UUID(state["user_id"])
+        )
     except Exception:
         logger.exception("Answer generation failed")
         answer = "Sorry, I ran into an error generating a response. Please try again."
@@ -316,7 +326,7 @@ async def stream_rag_pipeline(
     full_answer = ""
 
     try:
-        with log_api_call("groq", "chat_answer_stream"):
+        with log_api_call("groq", "chat_answer_stream", user_id=uuid.UUID(state["user_id"])):
             client = get_groq_client()
             stream = client.chat.completions.create(
                 model=ANSWER_MODEL, messages=messages, temperature=0.2, stream=True
@@ -329,7 +339,13 @@ async def stream_rag_pipeline(
     except Exception:
         logger.warning("Streaming Groq call failed, falling back to non-streaming completion", exc_info=True)
         try:
-            full_answer = chat_completion(messages, model=ANSWER_MODEL, temperature=0.2, purpose="chat_answer")
+            full_answer = chat_completion(
+                messages,
+                model=ANSWER_MODEL,
+                temperature=0.2,
+                purpose="chat_answer",
+                user_id=uuid.UUID(state["user_id"]),
+            )
         except Exception:
             logger.exception("Fallback answer generation also failed")
             full_answer = "Sorry, I ran into an error generating a response. Please try again."

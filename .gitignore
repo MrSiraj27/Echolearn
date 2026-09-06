@@ -10,6 +10,7 @@ backend/.env.*
 backend/.hf_cache/
 backend/.pip_cache/
 backend/chroma_data/
+backend/chroma_data_corrupted_backup_*/
 backend/storage/
 backend/voices/
 backend/bin/

@@ -171,7 +171,7 @@ export default function ChatPage({ params }: { params: Promise<{ chatId: string 
     <>
       <Sidebar activeChatId={chatId} />
       <main className="flex-1 min-w-0 flex flex-col h-screen bg-white dark:bg-neutral-950">
-        <div className="flex items-center justify-between gap-2 border-b border-neutral-200 dark:border-neutral-800 pl-14 pr-3 py-3 lg:px-6 overflow-hidden">
+        <div className="flex items-center justify-between gap-2 border-b border-neutral-200 dark:border-neutral-800 pl-14 pr-3 py-3 lg:px-6">
           <div className="min-w-0 flex items-center gap-2">
             <h1 className="text-sm font-semibold text-neutral-900 dark:text-neutral-100 truncate">
               {chatTitle || "Untitled chat"}

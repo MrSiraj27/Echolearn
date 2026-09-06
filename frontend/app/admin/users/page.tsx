@@ -10,7 +10,7 @@ interface AdminUserListItem {
   name: string;
   email: string;
   is_verified: boolean;
-  is_suspended: boolean;
+  is_blocked: boolean;
   is_admin: boolean;
   created_at: string;
   last_active: string | null;
@@ -83,9 +83,9 @@ export default function AdminUsersPage() {
                   </td>
                   <td className="px-4 py-2.5 text-neutral-600 dark:text-neutral-400">{user.email}</td>
                   <td className="px-4 py-2.5">
-                    {user.is_suspended ? (
+                    {user.is_blocked ? (
                       <span className="text-xs font-medium text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-950/40 rounded-full px-2 py-0.5">
-                        Suspended
+                        Blocked
                       </span>
                     ) : user.is_verified ? (
                       <span className="text-xs font-medium text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/40 rounded-full px-2 py-0.5">

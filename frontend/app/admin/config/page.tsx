@@ -6,7 +6,6 @@ import { adminApi, AdminApiError } from "@/lib/admin-api";
 
 interface ConfigData {
   feature_flags: Record<string, boolean>;
-  rate_limits: Record<string, number>;
   model_selection: Record<string, string>;
 }
 
@@ -18,12 +17,6 @@ const FLAG_LABELS: Record<string, string> = {
   infographic_generation_enabled: "Infographic generation",
   voice_output_enabled: "Voice output (TTS)",
   voice_input_enabled: "Voice input (speech-to-text)",
-};
-
-const RATE_LIMIT_LABELS: Record<string, string> = {
-  free_tier_messages_per_day: "Messages per day (free tier)",
-  free_tier_max_doc_size_mb: "Max document size (MB)",
-  free_tier_max_audio_minutes: "Max audio length (minutes)",
 };
 
 export default function AdminConfigPage() {
@@ -70,7 +63,12 @@ export default function AdminConfigPage() {
         Configuration
       </h1>
       <p className="text-sm text-neutral-500 dark:text-neutral-400 mb-6">
-        Feature flags and operational limits — changes apply immediately, no redeploy needed.
+        Feature flags and model selection — changes apply immediately, no redeploy needed. Per-plan
+        limits (documents, messages, storage, etc.) are managed on the{" "}
+        <a href="/admin/plans" className="underline hover:text-neutral-700 dark:hover:text-neutral-200">
+          Plans
+        </a>{" "}
+        page.
       </p>
 
       {error && <p className="text-sm text-red-600 dark:text-red-400 mb-4">{error}</p>}
@@ -104,39 +102,6 @@ export default function AdminConfigPage() {
                   className="h-4 w-4 accent-neutral-900 dark:accent-neutral-100"
                 />
               </label>
-            ))}
-          </div>
-        </div>
-
-        <div className="rounded-xl border border-neutral-200 dark:border-neutral-800 p-4">
-          <div className="flex items-center justify-between mb-3">
-            <p className="text-sm font-medium text-neutral-700 dark:text-neutral-300">Rate limits</p>
-            <button
-              onClick={() => saveSection("rate_limits")}
-              disabled={saving === "rate_limits"}
-              className="flex items-center gap-1.5 text-xs font-medium bg-neutral-900 dark:bg-neutral-100 text-white dark:text-neutral-900 rounded-lg px-3 py-1.5 hover:bg-neutral-800 dark:hover:bg-white disabled:opacity-50"
-            >
-              {saving === "rate_limits" && <Loader2 className="h-3 w-3 animate-spin" />}
-              Save Changes
-            </button>
-          </div>
-          <div className="space-y-2">
-            {Object.entries(draft.rate_limits).map(([key, value]) => (
-              <div key={key} className="flex items-center justify-between text-sm py-1.5">
-                <span className="text-neutral-700 dark:text-neutral-300">{RATE_LIMIT_LABELS[key] || key}</span>
-                <input
-                  type="number"
-                  value={value}
-                  onChange={(e) =>
-                    setDraft((prev) =>
-                      prev
-                        ? { ...prev, rate_limits: { ...prev.rate_limits, [key]: Number(e.target.value) } }
-                        : prev
-                    )
-                  }
-                  className="w-24 text-sm rounded-lg border border-neutral-300 dark:border-neutral-700 bg-transparent px-2 py-1 text-right text-neutral-900 dark:text-neutral-100 focus:outline-none focus:ring-1 focus:ring-neutral-900 dark:focus:ring-neutral-100"
-                />
-              </div>
             ))}
           </div>
         </div>

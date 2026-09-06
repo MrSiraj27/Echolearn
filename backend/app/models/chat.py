@@ -31,7 +31,9 @@ class ChatDocument(Base):
     __tablename__ = "chat_documents"
 
     chat_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("chats.id"), primary_key=True)
-    document_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("documents.id"), primary_key=True)
+    document_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("documents.id", ondelete="CASCADE"), primary_key=True
+    )
 
     chat = relationship("Chat", back_populates="document_links")
     document = relationship("Document", back_populates="chat_links")

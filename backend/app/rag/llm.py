@@ -41,16 +41,20 @@ def _gemini_chat(messages: list[dict], model: str = "gemini-2.5-flash") -> str:
 
 
 def chat_completion(
-    messages: list[dict], model: str = "openai/gpt-oss-120b", temperature: float = 0.2, purpose: str = "llm"
+    messages: list[dict],
+    model: str = "openai/gpt-oss-120b",
+    temperature: float = 0.2,
+    purpose: str = "llm",
+    user_id=None,
 ) -> str:
     """Call Groq; on failure/rate-limit, retry once with Gemini as a fallback."""
     try:
-        with log_api_call("groq", purpose):
+        with log_api_call("groq", purpose, user_id=user_id):
             return _groq_chat(model, messages, temperature)
     except Exception:
         logger.warning("Groq call failed, falling back to Gemini", exc_info=True)
         try:
-            with log_api_call("gemini", purpose):
+            with log_api_call("gemini", purpose, user_id=user_id):
                 return _gemini_chat(messages)
         except Exception:
             logger.exception("Gemini fallback also failed")
