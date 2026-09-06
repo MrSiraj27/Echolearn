@@ -47,7 +47,12 @@ def signup(payload: SignupRequest, db: Session = Depends(get_db)):
         name=payload.name,
         email=payload.email,
         password_hash=hash_password(payload.password),
-        is_verified=False,
+        # Auto-verified: email delivery only works for the Resend account owner's own
+        # address until a custom domain is verified at resend.com/domains (sandbox mode
+        # restriction), so gating login on a link that most users could never receive
+        # would lock everyone else out. Revert to False here once a verified sending
+        # domain is configured, and re-enable the is_verified check in login() below.
+        is_verified=True,
     )
     db.add(user)
     db.flush()
@@ -120,9 +125,6 @@ def login(payload: LoginRequest, response: Response, db: Session = Depends(get_d
     user = db.query(User).filter(User.email == payload.email).first()
     if not user or not verify_password(payload.password, user.password_hash):
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid email or password.")
-
-    if not user.is_verified:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Please verify your email first.")
 
     if user.is_blocked:
         raise HTTPException(
