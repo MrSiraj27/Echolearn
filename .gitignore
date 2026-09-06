@@ -27,6 +27,9 @@ frontend/*.tsbuildinfo
 frontend/next-env.d.ts
 frontend/.vercel/
 
+# --- root (npm postinstall bootstrap) ---
+/node_modules/
+
 # --- misc ---
 .DS_Store
 *.log
