@@ -1,0 +1,12 @@
+{
+  "name": "echolearn",
+  "version": "1.0.0",
+  "private": true,
+  "description": "EchoLearn — RAG document-chat platform. Run `npm install` from the repo root to set up both the frontend and backend.",
+  "scripts": {
+    "setup": "node scripts/setup.mjs",
+    "postinstall": "node scripts/setup.mjs",
+    "dev:frontend": "npm run dev --prefix frontend",
+    "dev:backend": "node scripts/run-backend.mjs"
+  }
+}
