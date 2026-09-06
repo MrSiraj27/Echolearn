@@ -150,7 +150,7 @@ export default function AdminModerationPage() {
                       disabled={actingId === report.id || !notes[report.id]?.trim()}
                       className="text-xs font-medium border border-amber-300 dark:border-amber-800 text-amber-700 dark:text-amber-400 rounded-lg px-2.5 py-1.5 hover:bg-amber-50 dark:hover:bg-amber-950/30 disabled:opacity-40"
                     >
-                      Suspend User
+                      Block User
                     </button>
                   </div>
                 </div>

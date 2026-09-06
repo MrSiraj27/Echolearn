@@ -444,6 +444,8 @@ def delete_user(
         db.delete(quiz)
     db.query(QuizAttempt).filter(QuizAttempt.user_id == user.id).delete()
     db.query(QueryLog).filter(QueryLog.user_id == user.id).delete()
+    db.query(UsageEvent).filter(UsageEvent.user_id == user.id).delete()
+    db.query(RateLimitViolation).filter(RateLimitViolation.user_id == user.id).delete()
     db.query(APICallLog).filter(APICallLog.user_id == user.id).update({"user_id": None})
 
     db.delete(user)

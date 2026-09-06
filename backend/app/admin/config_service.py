@@ -19,11 +19,6 @@ DEFAULT_CONFIG: dict[str, dict] = {
         "voice_output_enabled": True,
         "voice_input_enabled": True,
     },
-    "rate_limits": {
-        "free_tier_messages_per_day": 200,
-        "free_tier_max_doc_size_mb": 50,
-        "free_tier_max_audio_minutes": 60,
-    },
     "model_selection": {
         "primary_llm_provider": "groq",
         "fallback_llm_provider": "gemini",

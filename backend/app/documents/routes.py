@@ -26,7 +26,7 @@ from app.documents.schemas import (
     ReportDocumentRequest,
     TranscriptSegmentResponse,
 )
-from app.documents.storage import delete_document_files, save_upload
+from app.documents.storage import delete_document_files, sanitize_filename, save_upload
 from app.folders.schemas import MoveDocumentRequest
 from app.models import ContentReport, Document, DocumentFolder, DocumentStatus, User
 from app.rag.vectorstore import delete_document as delete_vector_chunks
@@ -102,7 +102,7 @@ async def upload_document(
 
     document = Document(
         user_id=current_user.id,
-        filename=file.filename or "unnamed",
+        filename=sanitize_filename(file.filename or "unnamed"),
         file_type=extension,
         storage_path="",
         status=DocumentStatus.uploaded,

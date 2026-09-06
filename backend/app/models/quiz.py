@@ -12,7 +12,9 @@ class Quiz(Base):
     __tablename__ = "quizzes"
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    user_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False
+    )
     document_ids: Mapped[list] = mapped_column(JSON, nullable=False, default=list)
     title: Mapped[str] = mapped_column(String, nullable=False)
     questions: Mapped[list] = mapped_column(JSON, nullable=False, default=list)
