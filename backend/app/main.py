@@ -19,11 +19,18 @@ from app.core.config import settings
 from app.chats.routes import router as chats_router
 from app.documents.routes import router as documents_router
 from app.folders.routes import router as folders_router
+from app.practice.past_paper_routes import router as past_papers_router
+from app.practice.paper_routes import router as practice_papers_router
 from app.quizzes.routes import router as quizzes_router
+from app.study.plan_routes import router as study_plans_router
+from app.study.review_routes import review_cards_router, review_router
 from app.users.routes import router as users_router
 from app.voice.routes import router as voice_router
 from app.workspaces.routes import router as workspaces_router
 from app.voice.tts import load_voice_model
+from app.voice.clone_background import fail_interrupted_jobs
+from app.voice.clone_model import load_clone_model, shutdown_clone_worker
+from app.voice.clone_routes import router as voice_clone_router
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -33,7 +40,10 @@ logger = logging.getLogger(__name__)
 async def lifespan(app: FastAPI):
     if settings.VOICE_BACKEND == "local":
         load_voice_model()  # Loaded once here, not per-request — model load is the slow part.
+    load_clone_model()  # only logs whether the isolated cloning worker is installed; it starts lazily
+    fail_interrupted_jobs()
     yield
+    shutdown_clone_worker()
 
 
 app = FastAPI(title="EchoLearn API", lifespan=lifespan)
@@ -77,7 +87,13 @@ app.include_router(documents_router)
 app.include_router(folders_router)
 app.include_router(chats_router)
 app.include_router(quizzes_router)
+app.include_router(review_router)
+app.include_router(review_cards_router)
+app.include_router(study_plans_router)
+app.include_router(past_papers_router)
+app.include_router(practice_papers_router)
 app.include_router(voice_router)
+app.include_router(voice_clone_router)
 app.include_router(workspaces_router)
 app.include_router(analytics_router)
 app.include_router(users_router)

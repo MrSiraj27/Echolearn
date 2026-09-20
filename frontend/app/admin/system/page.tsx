@@ -32,9 +32,17 @@ interface FailedJob {
   user_email: string;
   created_at: string;
 }
+interface VoiceCloneJobHealth {
+  recent_count: number;
+  done_count: number;
+  failed_count: number;
+  failure_rate: number;
+  avg_duration_ms: number | null;
+}
 interface JobHealth {
   stuck_jobs: StuckJob[];
   failed_jobs: FailedJob[];
+  voice_clone_jobs: VoiceCloneJobHealth;
 }
 interface StorageItem {
   user_id: string;
@@ -194,6 +202,40 @@ export default function AdminSystemPage() {
                     </button>
                   </div>
                 ))}
+              </div>
+            </div>
+          )}
+
+          {jobHealth && (
+            <div>
+              <p className="text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-2">Voice clone jobs (last 24h)</p>
+              <div className="grid grid-cols-4 gap-3">
+                <div className="rounded-xl border border-neutral-200 dark:border-neutral-800 p-3">
+                  <p className="text-xs text-neutral-400 uppercase tracking-wide mb-1">Jobs</p>
+                  <p className="text-lg font-semibold text-neutral-900 dark:text-neutral-100">
+                    {jobHealth.voice_clone_jobs.recent_count}
+                  </p>
+                </div>
+                <div className="rounded-xl border border-neutral-200 dark:border-neutral-800 p-3">
+                  <p className="text-xs text-neutral-400 uppercase tracking-wide mb-1">Done</p>
+                  <p className="text-lg font-semibold text-neutral-900 dark:text-neutral-100">
+                    {jobHealth.voice_clone_jobs.done_count}
+                  </p>
+                </div>
+                <div className="rounded-xl border border-neutral-200 dark:border-neutral-800 p-3">
+                  <p className="text-xs text-neutral-400 uppercase tracking-wide mb-1">Failure rate</p>
+                  <p className="text-lg font-semibold text-neutral-900 dark:text-neutral-100">
+                    {jobHealth.voice_clone_jobs.failure_rate}%
+                  </p>
+                </div>
+                <div className="rounded-xl border border-neutral-200 dark:border-neutral-800 p-3">
+                  <p className="text-xs text-neutral-400 uppercase tracking-wide mb-1">Avg duration</p>
+                  <p className="text-lg font-semibold text-neutral-900 dark:text-neutral-100">
+                    {jobHealth.voice_clone_jobs.avg_duration_ms != null
+                      ? `${Math.round(jobHealth.voice_clone_jobs.avg_duration_ms)}ms`
+                      : "—"}
+                  </p>
+                </div>
               </div>
             </div>
           )}

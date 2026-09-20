@@ -29,3 +29,5 @@ class MyUsageResponse(BaseModel):
     plan_id: uuid.UUID | None
     plan_name: str | None
     quotas: list[QuotaUsageItem]
+    has_voice_sample: bool = False
+    has_pending_reviews: bool = False

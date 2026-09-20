@@ -14,6 +14,7 @@ backend/chroma_data_corrupted_backup_*/
 backend/storage/
 backend/voices/
 backend/bin/
+backend/models/
 backend/*.log
 
 # --- frontend (Next.js) ---

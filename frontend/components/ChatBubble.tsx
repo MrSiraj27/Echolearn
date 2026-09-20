@@ -4,7 +4,7 @@ import { useRef, useState } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { motion, AnimatePresence } from "framer-motion";
-import { Copy, Check, RotateCcw, BookOpen, Sparkles } from "lucide-react";
+import { Copy, Check, RotateCcw, BookOpen, Sparkles, BookmarkPlus, BookmarkCheck } from "lucide-react";
 import { ChatMessage } from "@/lib/types";
 import ListenButton from "@/components/ListenButton";
 import ExplainModal from "@/components/ExplainModal";
@@ -100,6 +100,8 @@ export default function ChatBubble({
   onFollowUp,
   onSeek,
   onDeleteMessage,
+  precedingQuestion,
+  flashcardDocumentId,
 }: {
   message: ChatMessage;
   chatId?: string;
@@ -107,8 +109,12 @@ export default function ChatBubble({
   onFollowUp?: (question: string) => void;
   onSeek?: (seconds: number) => void;
   onDeleteMessage?: (messageId: string) => void;
+  precedingQuestion?: string;
+  flashcardDocumentId?: string;
 }) {
   const [copied, setCopied] = useState(false);
+  const [savingCard, setSavingCard] = useState(false);
+  const [cardSaved, setCardSaved] = useState(false);
   const [sourcesOpen, setSourcesOpen] = useState(false);
   const [viewingSource, setViewingSource] = useState<Citation | null>(null);
   const [popover, setPopover] = useState<SelectionPopover | null>(null);
@@ -126,6 +132,30 @@ export default function ChatBubble({
     await navigator.clipboard.writeText(message.content);
     setCopied(true);
     setTimeout(() => setCopied(false), 1500);
+  }
+
+  async function handleSaveFlashcard() {
+    if (!flashcardDocumentId || savingCard || cardSaved) return;
+    setSavingCard(true);
+    try {
+      await api.post(
+        "/review-cards/",
+        {
+          question: precedingQuestion || "Saved from chat",
+          answer: stripMarkdown(message.content),
+          document_id: flashcardDocumentId,
+          question_type: "short_answer",
+        },
+        { auth: true }
+      );
+      setCardSaved(true);
+    } catch {
+      // A 409 (near-duplicate) still reads fine as "saved" from the user's perspective —
+      // the card already exists, which is what they wanted.
+      setCardSaved(true);
+    } finally {
+      setSavingCard(false);
+    }
   }
 
   function handleMouseUp() {
@@ -269,6 +299,22 @@ export default function ChatBubble({
             >
               <RotateCcw className="h-3.5 w-3.5" />
               Regenerate
+            </button>
+          )}
+          {flashcardDocumentId && (
+            <button
+              onClick={handleSaveFlashcard}
+              disabled={savingCard || cardSaved}
+              className="text-xs hover:text-neutral-700 dark:hover:text-neutral-300 transition-colors inline-flex items-center gap-1 disabled:opacity-70"
+              aria-label="Save as flashcard"
+              title="Save this answer as a spaced-repetition flashcard"
+            >
+              {cardSaved ? (
+                <BookmarkCheck className="h-3.5 w-3.5" />
+              ) : (
+                <BookmarkPlus className="h-3.5 w-3.5" />
+              )}
+              {cardSaved ? "Saved" : "Save as flashcard"}
             </button>
           )}
           {citations.length > 0 && (

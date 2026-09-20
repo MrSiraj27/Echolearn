@@ -195,6 +195,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
     let accumulated = "";
     let citations = null;
     let followUps: string[] = [];
+    let serverMessageId: string | null = null;
 
     while (true) {
       const { done, value } = await reader.read();
@@ -222,6 +223,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
           } else if (eventType === "done") {
             citations = parsed.citations;
             followUps = parsed.follow_ups || [];
+            if (parsed.message_id) serverMessageId = parsed.message_id;
           }
         } catch {
           // ignore malformed SSE chunk
@@ -230,7 +232,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
     }
 
     const assistantMessage: ChatMessage = {
-      id: `assistant-${Date.now()}`,
+      id: serverMessageId || `assistant-${Date.now()}`,
       role: "assistant",
       content: accumulated,
       citations,

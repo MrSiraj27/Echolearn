@@ -1,4 +1,6 @@
+import logging
 import uuid
+from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
@@ -7,7 +9,7 @@ from app.admin.config_service import is_feature_enabled
 from app.core.database import get_db
 from app.core.security import get_current_user
 from app.core.usage import check_and_record_usage
-from app.models import Document, Quiz, QuizAttempt, User
+from app.models import Document, Quiz, QuizAttempt, StudySession, StudySessionStatus, User
 from app.quizzes.schemas import (
     GenerateQuizRequest,
     QuestionResult,
@@ -18,8 +20,10 @@ from app.quizzes.schemas import (
     SubmitQuizResponse,
 )
 from app.rag.quiz_generator import generate_quiz
+from app.study.card_service import create_review_cards
 
 router = APIRouter(prefix="/quizzes", tags=["quizzes"])
+logger = logging.getLogger(__name__)
 
 VALID_DIFFICULTIES = {"easy", "medium", "hard"}
 VALID_QUESTION_TYPES = {"multiple_choice", "short_answer", "mixed"}
@@ -39,6 +43,49 @@ def _to_public_questions(questions: list[dict]) -> list[QuizQuestionPublic]:
         QuizQuestionPublic(id=q["id"], question=q["question"], type=q["type"], options=q.get("options", []))
         for q in questions
     ]
+
+
+def _save_review_cards_for_quiz(db: Session, user_id: uuid.UUID, documents: list[Document], questions: list[dict]) -> None:
+    """Every generated quiz question also becomes a ReviewCard (Prompt 30) — dedup
+    against the user's existing cards happens inside create_review_cards. Each
+    question's source_filename (set by the quiz generator) is used to attribute it back
+    to the right document when the quiz spans several; falls back to the first document
+    if a question's filename can't be matched (e.g. the LLM omitted it)."""
+    if not documents:
+        return
+    by_filename = {d.filename: d.id for d in documents}
+    fallback_document_id = documents[0].id
+
+    by_document: dict[uuid.UUID, list[dict]] = {}
+    for q in questions:
+        document_id = by_filename.get(q.get("source_filename"), fallback_document_id)
+        by_document.setdefault(document_id, []).append(
+            {
+                "question": q["question"],
+                "answer": q["correct_answer"],
+                "question_type": q["type"],
+                "options": q.get("options"),
+                "source_chunk_id": f"page:{q['source_page']}" if q.get("source_page") is not None else None,
+            }
+        )
+
+    for document_id, items in by_document.items():
+        try:
+            create_review_cards(db, user_id, document_id, items)
+        except Exception:
+            logger.warning("Saving review cards for quiz failed", exc_info=True)
+
+
+def _autocomplete_linked_study_session(db: Session, quiz_id: uuid.UUID) -> None:
+    session = (
+        db.query(StudySession)
+        .filter(StudySession.quiz_id == quiz_id, StudySession.status == StudySessionStatus.pending)
+        .first()
+    )
+    if session:
+        session.status = StudySessionStatus.completed
+        session.completed_at = datetime.now(timezone.utc)
+        db.commit()
 
 
 @router.post("/generate", response_model=QuizResponse, status_code=status.HTTP_201_CREATED)
@@ -89,6 +136,8 @@ def create_quiz(
     db.add(quiz)
     db.commit()
     db.refresh(quiz)
+
+    _save_review_cards_for_quiz(db, current_user.id, documents, quiz.questions)
 
     return QuizResponse(
         id=quiz.id,
@@ -200,6 +249,10 @@ def submit_quiz(
     db.add(attempt)
     db.commit()
     db.refresh(attempt)
+
+    # If this quiz was generated as a study plan checkpoint (Prompt 29), submitting it
+    # auto-completes the linked StudySession.
+    _autocomplete_linked_study_session(db, quiz.id)
 
     return SubmitQuizResponse(
         attempt_id=attempt.id, score=score, total=total, correct_count=correct_count, results=results

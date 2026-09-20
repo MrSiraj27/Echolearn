@@ -1,7 +1,7 @@
 import uuid
 from datetime import datetime, timezone
 
-from sqlalchemy import JSON, Boolean, DateTime, ForeignKey, String, Text
+from sqlalchemy import JSON, Boolean, DateTime, ForeignKey, Integer, String, Text, text
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -34,6 +34,16 @@ class User(Base):
     # Plans & quotas
     plan_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("plans.id"), nullable=True)
     custom_limits: Mapped[dict | None] = mapped_column(JSON, nullable=True)
+
+    # Voice cloning (Prompt 28). Set once a reference sample is uploaded; cleared on delete.
+    cloned_voice_sample_hash: Mapped[str | None] = mapped_column(String, nullable=True)
+    # Opt-in: clone each new assistant reply in the background so Listen is instant.
+    voice_pregenerate: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False, server_default=text("false"))
+
+    # Daily Review (Prompt 30). Null means "use the app default" (see
+    # app.study.spaced_repetition.DEFAULT_DAILY_CARD_CAP) rather than baking the default
+    # in at write time, so lowering the app-wide default later doesn't require a backfill.
+    daily_review_cap: Mapped[int | None] = mapped_column(Integer, nullable=True)
 
     auth_tokens = relationship("AuthToken", back_populates="user", cascade="all, delete-orphan")
     documents = relationship("Document", back_populates="user", cascade="all, delete-orphan")

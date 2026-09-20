@@ -1,0 +1,18 @@
+# Dependencies for the ISOLATED MOSS-TTS-Nano voice-cloning worker.
+# Install ONLY into backend/models/moss-tts-nano/venv (see setup_worker.ps1 / README.md).
+# Never install these into the main backend venv: the torch/numpy pins here
+# conflict with the main app's torch/transformers stack.
+#
+# torch/torchaudio are needed only for the upstream runtime's reference-audio
+# load+resample; the setup script installs CPU wheels first:
+#   pip install torch==2.7.0 torchaudio==2.7.0 --index-url https://download.pytorch.org/whl/cpu
+numpy>=1.24,<2.3
+sentencepiece>=0.1.99
+soundfile
+onnxruntime>=1.20
+huggingface_hub
+fastapi>=0.110
+python-multipart>=0.0.9
+uvicorn>=0.29
+# NOT installed on purpose: transformers, WeTextProcessing/pynini (the worker runs
+# with upstream's built-in "robust" text normalizer; WeText is disabled).
