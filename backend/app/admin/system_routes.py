@@ -19,10 +19,11 @@ from app.admin.system_schemas import (
     UsageOverviewResponse,
     UserStorageItem,
 )
+from app.admin.system_schemas import VoiceCloneJobHealth
 from app.core.database import get_db
 from app.core.security import get_current_admin
 from app.documents.background import run_parsing_task
-from app.models import APICallLog, Document, DocumentStatus, User
+from app.models import APICallLog, Document, DocumentStatus, User, VoiceCloneJob, VoiceCloneJobStatus
 from app.rag.vectorstore import delete_document as delete_vector_chunks
 
 router = APIRouter(prefix="/admin/system", tags=["admin-system"], dependencies=[Depends(get_current_admin)])
@@ -128,7 +129,21 @@ def job_health(admin: User = Depends(get_current_admin), db: Session = Depends(g
             )
         )
 
-    return JobHealthResponse(stuck_jobs=stuck_jobs, failed_jobs=failed_jobs)
+    day_ago = now - timedelta(hours=24)
+    recent_clone_jobs = db.query(VoiceCloneJob).filter(VoiceCloneJob.created_at >= day_ago).all()
+    done_jobs = [j for j in recent_clone_jobs if j.status == VoiceCloneJobStatus.done]
+    failed_clone_jobs = [j for j in recent_clone_jobs if j.status == VoiceCloneJobStatus.failed]
+    finished = done_jobs + failed_clone_jobs
+    durations = [j.duration_ms for j in finished if j.duration_ms is not None]
+    voice_clone_health = VoiceCloneJobHealth(
+        recent_count=len(recent_clone_jobs),
+        done_count=len(done_jobs),
+        failed_count=len(failed_clone_jobs),
+        failure_rate=round(100 * len(failed_clone_jobs) / len(finished), 1) if finished else 0.0,
+        avg_duration_ms=round(sum(durations) / len(durations), 1) if durations else None,
+    )
+
+    return JobHealthResponse(stuck_jobs=stuck_jobs, failed_jobs=failed_jobs, voice_clone_jobs=voice_clone_health)
 
 
 @router.post("/documents/{document_id}/retry-processing", status_code=status.HTTP_204_NO_CONTENT)

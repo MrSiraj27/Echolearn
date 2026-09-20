@@ -66,6 +66,20 @@ Not downloaded automatically — it's 100MB+. See
 download command. Without it, the app still runs; `/voice/speak` just returns
 503 until the model is in place.
 
+### 4b. Voice cloning (optional)
+
+"My Voice" reads answers in a voice cloned from a 3-20 s sample of yours, fully locally on CPU
+via MOSS-TTS-Nano. It runs as an **isolated worker with its own venv** (its pinned torch would
+break the main backend), started lazily by the backend on first use.
+
+```bash
+python backend/voice_worker/setup_worker.py     # one time: venv + deps + ~700 MB of weights
+```
+
+Details: [backend/voice_worker/README.md](backend/voice_worker/README.md). If you skip this, the
+app runs normally and "My Voice" reports that voice cloning is unavailable (HTTP 503); the default
+voice is unaffected. Cloning also needs a plan/limit with `voice_clone_uses_per_day` above 0.
+
 ### 5. Run both servers
 
 From the repo root:

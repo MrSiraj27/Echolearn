@@ -1,11 +1,13 @@
 import json
 import re
+import threading
 import uuid
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.responses import Response, StreamingResponse
 from sqlalchemy.orm import Session
 
+from app.voice.clone_routes import pregenerate_clone
 from app.chats.export import build_markdown, build_pdf
 from app.chats.schemas import (
     ChatDetailResponse,

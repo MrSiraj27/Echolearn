@@ -6,6 +6,7 @@ from app.core.limits import get_effective_limits
 from app.core.security import get_current_user
 from app.core.usage import rolling_quota_usage
 from app.models import Document, Plan, User, Workspace
+from app.study.review_routes import has_pending_reviews
 from app.users.schemas import MyUsageResponse, PublicPlan, QuotaUsageItem
 
 router = APIRouter(prefix="/users", tags=["users"])
@@ -39,4 +40,6 @@ def get_my_usage(current_user: User = Depends(get_current_user), db: Session = D
         plan_id=current_user.plan_id,
         plan_name=current_user.plan.name if current_user.plan else None,
         quotas=quotas,
+        has_voice_sample=bool(current_user.cloned_voice_sample_hash),
+        has_pending_reviews=has_pending_reviews(db, current_user),
     )

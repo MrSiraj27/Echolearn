@@ -3,7 +3,8 @@
 import { useEffect, useRef, useState } from "react";
 import { useTheme } from "next-themes";
 import { motion, AnimatePresence } from "framer-motion";
-import { Settings, Sun, Moon, Monitor, Check } from "lucide-react";
+import Link from "next/link";
+import { Settings, Sun, Moon, Monitor, Check, Mic } from "lucide-react";
 import { useSpeech, RECOGNITION_LANGUAGES } from "@/lib/speech-context";
 import { api } from "@/lib/api";
 
@@ -119,6 +120,17 @@ export default function SettingsMenu() {
                   </option>
                 ))}
               </select>
+            </div>
+
+            <div className="px-3 py-2 border-t border-neutral-100 dark:border-neutral-700">
+              <Link
+                href="/settings"
+                onClick={() => setOpen(false)}
+                className="w-full flex items-center gap-2 text-xs text-neutral-600 dark:text-neutral-300 hover:text-neutral-900 dark:hover:text-neutral-100 px-2 py-1.5 rounded-md hover:bg-neutral-50 dark:hover:bg-neutral-700 transition-colors"
+              >
+                <Mic className="h-3.5 w-3.5" />
+                Voice Cloning settings
+              </Link>
             </div>
           </motion.div>
         )}

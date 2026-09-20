@@ -26,6 +26,10 @@ interface SpeechContextValue {
   setVoiceId: (id: string) => void;
   recognitionLang: string;
   setRecognitionLang: (lang: string) => void;
+  hasVoiceSample: boolean;
+  refreshVoiceSample: () => void;
+  useMyVoice: boolean;
+  setUseMyVoice: (v: boolean) => void;
 }
 
 const SpeechContext = createContext<SpeechContextValue | undefined>(undefined);
@@ -34,6 +38,8 @@ export function SpeechProvider({ children }: { children: ReactNode }) {
   const [speakingId, setSpeakingIdState] = useState<string | null>(null);
   const [voiceId, setVoiceIdState] = useState<string>(DEFAULT_VOICE_ID);
   const [recognitionLang, setRecognitionLangState] = useState<string>(DEFAULT_RECOGNITION_LANG);
+  const [hasVoiceSample, setHasVoiceSample] = useState(false);
+  const [useMyVoice, setUseMyVoice] = useState(false);
 
   useEffect(() => {
     try {
@@ -45,6 +51,19 @@ export function SpeechProvider({ children }: { children: ReactNode }) {
       // localStorage unavailable — fall back to the defaults.
     }
   }, []);
+
+  const refreshVoiceSample = useCallback(() => {
+    import("@/lib/api").then(({ api }) => {
+      api
+        .get<{ has_voice_sample: boolean }>("/users/me/usage", { auth: true })
+        .then((data) => setHasVoiceSample(!!data.has_voice_sample))
+        .catch(() => setHasVoiceSample(false));
+    });
+  }, []);
+
+  useEffect(() => {
+    refreshVoiceSample();
+  }, [refreshVoiceSample]);
 
   const setSpeakingId = useCallback((id: string | null) => {
     setSpeakingIdState(id);
@@ -70,7 +89,18 @@ export function SpeechProvider({ children }: { children: ReactNode }) {
 
   return (
     <SpeechContext.Provider
-      value={{ speakingId, setSpeakingId, voiceId, setVoiceId, recognitionLang, setRecognitionLang }}
+      value={{
+        speakingId,
+        setSpeakingId,
+        voiceId,
+        setVoiceId,
+        recognitionLang,
+        setRecognitionLang,
+        hasVoiceSample,
+        refreshVoiceSample,
+        useMyVoice,
+        setUseMyVoice,
+      }}
     >
       {children}
     </SpeechContext.Provider>

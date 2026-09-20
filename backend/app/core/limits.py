@@ -14,6 +14,7 @@ LIMITS_SCHEMA_DEFAULTS: dict = {
     "quiz_generations_per_month": None,
     "tts_uses_per_day": None,
     "diagrams_infographics_per_month": None,
+    "voice_clone_uses_per_day": 0,
     "max_storage_mb": None,
     "priority_processing": False,
 }

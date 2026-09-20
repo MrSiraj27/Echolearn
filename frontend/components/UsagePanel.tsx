@@ -2,8 +2,9 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { ChevronDown, ChevronUp, Gauge } from "lucide-react";
+import { ChevronDown, ChevronUp, Flame, Gauge } from "lucide-react";
 import { api } from "@/lib/api";
+import { ReviewStatsResponse } from "@/lib/types";
 
 interface QuotaUsageItem {
   key: string;
@@ -27,11 +28,13 @@ const ROLLING_KEYS = new Set([
   "quiz_generations_per_month",
   "tts_uses_per_day",
   "diagrams_infographics_per_month",
+  "voice_clone_uses_per_day",
 ]);
 
 export default function UsagePanel() {
   const [usage, setUsage] = useState<MyUsageResponse | null>(null);
   const [expanded, setExpanded] = useState(false);
+  const [streakDays, setStreakDays] = useState<number | null>(null);
 
   function load() {
     api
@@ -44,6 +47,13 @@ export default function UsagePanel() {
     load();
     const interval = setInterval(load, 15000);
     return () => clearInterval(interval);
+  }, []);
+
+  useEffect(() => {
+    api
+      .get<ReviewStatsResponse>("/review/stats", { auth: true })
+      .then((s) => setStreakDays(s.current_streak_days))
+      .catch(() => setStreakDays(null));
   }, []);
 
   useEffect(() => {
@@ -65,7 +75,18 @@ export default function UsagePanel() {
           <Gauge className="h-3.5 w-3.5" />
           {usage.plan_name || "Free"} plan
         </span>
-        {expanded ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
+        <span className="flex items-center gap-2">
+          {!!streakDays && (
+            <span
+              className="flex items-center gap-0.5 text-amber-600 dark:text-amber-400"
+              title={`${streakDays}-day review streak`}
+            >
+              <Flame className="h-3.5 w-3.5" />
+              {streakDays}
+            </span>
+          )}
+          {expanded ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
+        </span>
       </button>
 
       {expanded && (

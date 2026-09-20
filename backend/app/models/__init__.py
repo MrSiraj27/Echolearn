@@ -10,8 +10,31 @@ from app.models.user import User
 from app.models.admin import AdminAuditLog, ContentReport, APICallLog, SystemConfig
 from app.models.plan import Plan
 from app.models.usage_event import UsageEvent, RateLimitViolation
+from app.models.voice_clone_job import VoiceCloneJob, VoiceCloneJobStatus
+from app.models.practice import (
+    PastPaper,
+    PastPaperAnalysisStatus,
+    PracticePaper,
+    PracticePaperAttempt,
+    PracticePaperStatus,
+)
+from app.models.study import (
+    ReviewCard,
+    ReviewCardState,
+    ReviewQuestionType,
+    StudyPlan,
+    StudyPlanStatus,
+    StudySession,
+    StudySessionStatus,
+    StudySessionType,
+)
 
 __all__ = [
+    "PastPaper",
+    "PastPaperAnalysisStatus",
+    "PracticePaper",
+    "PracticePaperAttempt",
+    "PracticePaperStatus",
     "User",
     "AuthToken",
     "AuthTokenType",
@@ -34,4 +57,14 @@ __all__ = [
     "Plan",
     "UsageEvent",
     "RateLimitViolation",
+    "VoiceCloneJob",
+    "VoiceCloneJobStatus",
+    "ReviewCard",
+    "ReviewCardState",
+    "ReviewQuestionType",
+    "StudyPlan",
+    "StudyPlanStatus",
+    "StudySession",
+    "StudySessionStatus",
+    "StudySessionType",
 ]

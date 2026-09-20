@@ -20,6 +20,11 @@ _EVENT_CONFIG: dict[str, dict] = {
         "window_days": 30,
         "label": "diagram/infographic generation",
     },
+    "voice_clone_use": {
+        "limit_key": "voice_clone_uses_per_day",
+        "window_days": 1,
+        "label": "voice clone generation",
+    },
 }
 
 
@@ -78,55 +83,72 @@ def _maybe_auto_block(db: Session, user: User) -> None:
     )
 
 
-def check_and_record_usage(db: Session, user: User, event_type: str) -> None:
-    """Enforce the rolling-window quota for `event_type` and, if allowed, record this
-    usage event. Raises HTTPException(429) if the user is over their limit — the detail
-    message tells them when they'll be able to try again, computed from the oldest
-    in-window event."""
+def enforce_quota(db: Session, user: User, event_type: str, pending: int = 0) -> None:
+    """Raise HTTPException(429) if `user` is at/over their rolling-window limit for
+    `event_type`. Does NOT record anything. `pending` counts work that has been
+    accepted but not yet recorded as a UsageEvent (e.g. queued voice-clone jobs that
+    only charge on success), so users can't queue unlimited jobs against a small
+    limit."""
     if event_type not in _EVENT_CONFIG:
         raise ValueError(f"Unknown usage event_type: {event_type}")
 
     config = _EVENT_CONFIG[event_type]
     limits = get_effective_limits(user)
     limit = limits.get(config["limit_key"])
+    if limit is None:
+        return
 
-    if limit is not None:
-        window = _window_for(event_type, limits)
-        window_start = datetime.now(timezone.utc) - window
+    window = _window_for(event_type, limits)
+    window_start = datetime.now(timezone.utc) - window
 
-        events_in_window = (
-            db.query(UsageEvent)
-            .filter(
-                UsageEvent.user_id == user.id,
-                UsageEvent.event_type == event_type,
-                UsageEvent.created_at >= window_start,
-            )
-            .order_by(UsageEvent.created_at.asc())
-            .all()
+    events_in_window = (
+        db.query(UsageEvent)
+        .filter(
+            UsageEvent.user_id == user.id,
+            UsageEvent.event_type == event_type,
+            UsageEvent.created_at >= window_start,
         )
+        .order_by(UsageEvent.created_at.asc())
+        .all()
+    )
 
-        if len(events_in_window) >= limit:
-            db.add(RateLimitViolation(user_id=user.id, event_type=event_type))
-            _maybe_auto_block(db, user)
-            db.commit()
+    if len(events_in_window) + pending < limit:
+        return
 
-            oldest = events_in_window[0]
-            oldest_created = oldest.created_at if oldest.created_at.tzinfo else oldest.created_at.replace(
-                tzinfo=timezone.utc
-            )
-            reset_at = oldest_created + window
-            remaining_seconds = (reset_at - datetime.now(timezone.utc)).total_seconds()
-
-            raise HTTPException(
-                status_code=status.HTTP_429_TOO_MANY_REQUESTS,
-                detail=(
-                    f"You've reached your {config['label']} limit. You can send another "
-                    f"{config['label']} in {_human_remaining(remaining_seconds)}."
-                ),
-            )
-
-    db.add(UsageEvent(user_id=user.id, event_type=event_type))
+    db.add(RateLimitViolation(user_id=user.id, event_type=event_type))
+    _maybe_auto_block(db, user)
     db.commit()
+
+    if events_in_window:
+        oldest_created = events_in_window[0].created_at
+        if not oldest_created.tzinfo:
+            oldest_created = oldest_created.replace(tzinfo=timezone.utc)
+        remaining_seconds = (oldest_created + window - datetime.now(timezone.utc)).total_seconds()
+        detail = (
+            f"You've reached your {config['label']} limit. You can send another "
+            f"{config['label']} in {_human_remaining(remaining_seconds)}."
+        )
+    else:
+        detail = (
+            f"You've reached your {config['label']} limit — you already have {pending} in progress. "
+            "Wait for them to finish and try again."
+        )
+    raise HTTPException(status_code=status.HTTP_429_TOO_MANY_REQUESTS, detail=detail)
+
+
+def record_usage(db: Session, user_id, event_type: str) -> None:
+    """Record one usage event (no limit check)."""
+    db.add(UsageEvent(user_id=user_id, event_type=event_type))
+    db.commit()
+
+
+def check_and_record_usage(db: Session, user: User, event_type: str) -> None:
+    """Enforce the rolling-window quota for `event_type` and, if allowed, record this
+    usage event. Raises HTTPException(429) if the user is over their limit — the detail
+    message tells them when they'll be able to try again, computed from the oldest
+    in-window event."""
+    enforce_quota(db, user, event_type)
+    record_usage(db, user.id, event_type)
 
 
 ROLLING_QUOTA_LABELS = {
@@ -134,6 +156,7 @@ ROLLING_QUOTA_LABELS = {
     "quiz_generation": "Quiz generations",
     "tts_use": "Text-to-speech uses",
     "diagram_infographic": "Diagrams & infographics",
+    "voice_clone_use": "Voice clone generations",
 }
 
 

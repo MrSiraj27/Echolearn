@@ -256,6 +256,8 @@ export default function ChatPage({ params }: { params: Promise<{ chatId: string 
                 }
                 onSeek={isMediaDoc ? handleSeek : undefined}
                 onDeleteMessage={(messageId) => deleteMessage(chatId, messageId)}
+                precedingQuestion={m.role === "assistant" ? messages[i - 1]?.content : undefined}
+                flashcardDocumentId={m.role === "assistant" ? chatDocumentIds[0] : undefined}
               />
             ))}
             {streamingMessage && streamingMessage.content && <ChatBubble message={streamingMessage} />}

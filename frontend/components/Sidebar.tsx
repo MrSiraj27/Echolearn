@@ -21,6 +21,8 @@ import {
   Link2,
   Loader2,
   BarChart3,
+  CalendarClock,
+  ClipboardList,
 } from "lucide-react";
 import { useChatStore } from "@/lib/chat-store";
 import { useAuth } from "@/lib/auth-context";
@@ -30,7 +32,9 @@ import {
   DocumentItem,
   DocumentStatus,
   Folder,
+  PracticePaperListItem,
   QuizListItem,
+  StudyPlanResponse,
   VIDEO_EXTENSIONS,
   Workspace,
   WorkspaceDetail,
@@ -41,6 +45,8 @@ import MoveToFolderMenu from "@/components/MoveToFolderMenu";
 import SelectChatScopeModal from "@/components/SelectChatScopeModal";
 import WorkspaceModal from "@/components/WorkspaceModal";
 import UsagePanel from "@/components/UsagePanel";
+import DailyReviewCard from "@/components/DailyReviewCard";
+import DailyStudyPlanCard from "@/components/DailyStudyPlanCard";
 
 function Mark() {
   return (
@@ -219,6 +225,8 @@ export default function Sidebar({ activeChatId }: { activeChatId?: string }) {
   const [searchingDoc, setSearchingDoc] = useState<DocumentItem | null>(null);
   const [collapsedFolders, setCollapsedFolders] = useState<Set<string>>(new Set());
   const [quizzes, setQuizzes] = useState<QuizListItem[]>([]);
+  const [studyPlans, setStudyPlans] = useState<StudyPlanResponse[]>([]);
+  const [practicePapers, setPracticePapers] = useState<PracticePaperListItem[]>([]);
   const [showScopeModal, setShowScopeModal] = useState(false);
   const [showNewWorkspaceModal, setShowNewWorkspaceModal] = useState(false);
   const [managingWorkspace, setManagingWorkspace] = useState<Workspace | null>(null);
@@ -232,6 +240,14 @@ export default function Sidebar({ activeChatId }: { activeChatId?: string }) {
       .get<QuizListItem[]>("/quizzes/", { auth: true })
       .then(setQuizzes)
       .catch(() => setQuizzes([]));
+    api
+      .get<StudyPlanResponse[]>("/study-plans/", { auth: true })
+      .then((plans) => setStudyPlans(plans.filter((p) => p.status === "active")))
+      .catch(() => setStudyPlans([]));
+    api
+      .get<PracticePaperListItem[]>("/practice-papers/", { auth: true })
+      .then((papers) => setPracticePapers(papers.filter((p) => p.status !== "failed").slice(0, 5)))
+      .catch(() => setPracticePapers([]));
   }, []);
 
   useEffect(() => {
@@ -375,6 +391,8 @@ export default function Sidebar({ activeChatId }: { activeChatId?: string }) {
         </div>
 
       <div className="px-3">
+        <DailyReviewCard />
+        <DailyStudyPlanCard />
         <button
           onClick={() => {
             setMobileOpen(false);
@@ -641,6 +659,92 @@ export default function Sidebar({ activeChatId }: { activeChatId?: string }) {
             </div>
           ))}
         </div>
+
+        <div className="flex items-center justify-between px-1 mb-1 mt-5">
+          <p className="text-[11px] font-semibold text-neutral-400 dark:text-neutral-500 uppercase tracking-wide">
+            Study Plans
+          </p>
+          <Link
+            href="/study-plans/new"
+            onClick={() => setMobileOpen(false)}
+            className="text-neutral-400 hover:text-neutral-700 dark:hover:text-neutral-200 transition-colors"
+            aria-label="New study plan"
+          >
+            <Plus className="h-3.5 w-3.5" />
+          </Link>
+        </div>
+        {studyPlans.length === 0 ? (
+          <p className="text-xs text-neutral-400 dark:text-neutral-500 px-1 py-1">
+            Build an exam-aware day-by-day study schedule.
+          </p>
+        ) : (
+          <div className="space-y-1">
+            {studyPlans.map((plan) => (
+              <Link
+                key={plan.id}
+                href={`/study-plans/${plan.id}`}
+                onClick={() => setMobileOpen(false)}
+                className="flex items-center gap-1.5 rounded-lg px-2.5 py-2 text-sm text-neutral-600 dark:text-neutral-400 hover:bg-neutral-100 dark:hover:bg-neutral-800/60 transition-colors"
+              >
+                <CalendarClock className="h-3.5 w-3.5 shrink-0 text-neutral-400" />
+                <span className="truncate">{plan.title}</span>
+                <span className="text-xs text-neutral-400 dark:text-neutral-500 shrink-0">
+                  ({plan.completed_count}/{plan.session_count})
+                </span>
+              </Link>
+            ))}
+          </div>
+        )}
+        <Link
+          href="/study-plans"
+          onClick={() => setMobileOpen(false)}
+          className="block text-xs text-neutral-400 hover:text-neutral-700 dark:hover:text-neutral-200 px-1 py-1 transition-colors"
+        >
+          View all plans →
+        </Link>
+
+        <div className="flex items-center justify-between px-1 mb-1 mt-5">
+          <p className="text-[11px] font-semibold text-neutral-400 dark:text-neutral-500 uppercase tracking-wide">
+            Practice Papers
+          </p>
+          <Link
+            href="/practice-papers/new"
+            onClick={() => setMobileOpen(false)}
+            className="text-neutral-400 hover:text-neutral-700 dark:hover:text-neutral-200 transition-colors"
+            aria-label="New practice paper"
+          >
+            <Plus className="h-3.5 w-3.5" />
+          </Link>
+        </div>
+        {practicePapers.length === 0 ? (
+          <p className="text-xs text-neutral-400 dark:text-neutral-500 px-1 py-1">
+            Generate a printable practice exam from your materials.
+          </p>
+        ) : (
+          <div className="space-y-1">
+            {practicePapers.map((paper) => (
+              <Link
+                key={paper.id}
+                href={`/practice-papers/${paper.id}`}
+                onClick={() => setMobileOpen(false)}
+                className="flex items-center gap-1.5 rounded-lg px-2.5 py-2 text-sm text-neutral-600 dark:text-neutral-400 hover:bg-neutral-100 dark:hover:bg-neutral-800/60 transition-colors"
+              >
+                <ClipboardList className="h-3.5 w-3.5 shrink-0 text-neutral-400" />
+                <span className="truncate">{paper.title}</span>
+                {paper.status === "generating" && (
+                  <Loader2 className="h-3 w-3 shrink-0 animate-spin text-neutral-400" />
+                )}
+              </Link>
+            ))}
+          </div>
+        )}
+        <Link
+          href="/practice-papers"
+          onClick={() => setMobileOpen(false)}
+          className="block text-xs text-neutral-400 hover:text-neutral-700 dark:hover:text-neutral-200 px-1 py-1 transition-colors"
+        >
+          View all papers →
+        </Link>
 
         {quizzes.length > 0 && (
           <>

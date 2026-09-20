@@ -47,9 +47,18 @@ class FailedJob(BaseModel):
     created_at: datetime
 
 
+class VoiceCloneJobHealth(BaseModel):
+    recent_count: int  # last 24h
+    done_count: int
+    failed_count: int
+    failure_rate: float
+    avg_duration_ms: float | None
+
+
 class JobHealthResponse(BaseModel):
     stuck_jobs: list[StuckJob]
     failed_jobs: list[FailedJob]
+    voice_clone_jobs: VoiceCloneJobHealth
 
 
 class UserStorageItem(BaseModel):
