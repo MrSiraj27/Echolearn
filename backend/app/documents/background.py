@@ -11,6 +11,7 @@ from app.core.config import settings
 from app.core.database import SessionLocal
 from app.documents.parsers import parse_file
 from app.documents.video_url import download_audio_from_url
+from app.documents.object_storage import upload_dir
 from app.models import ContentReport, Document, DocumentStatus
 from app.rag.chunking import chunk_text
 from app.rag.summarizer import generate_document_summary
@@ -57,6 +58,10 @@ def run_parsing_task(document_id: uuid.UUID, file_path: str, extension: str) -> 
 
         document.page_count = len(pages)
         db.commit()
+
+        # Back up the original file + parsed text now that both exist on local disk — a
+        # no-op unless R2_* is configured (see app/documents/object_storage.py).
+        upload_dir(f"{document.user_id}/{document.id}", Path(file_path).parent)
 
         try:
             full_text = "\n".join(p.text for p in pages).lower()

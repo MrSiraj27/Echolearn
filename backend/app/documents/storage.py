@@ -3,6 +3,7 @@ import uuid
 from pathlib import Path
 
 from app.core.config import settings
+from app.documents.object_storage import delete_prefix
 
 _UNSAFE_CHARS = re.compile(r"[^A-Za-z0-9_.\-]")
 
@@ -33,3 +34,4 @@ def delete_document_files(user_id: uuid.UUID, document_id: uuid.UUID) -> None:
     path = Path(settings.STORAGE_PATH) / str(user_id) / str(document_id)
     if path.exists():
         shutil.rmtree(path, ignore_errors=True)
+    delete_prefix(f"{user_id}/{document_id}")
