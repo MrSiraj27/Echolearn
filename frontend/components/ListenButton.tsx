@@ -33,7 +33,8 @@ function pickBrowserVoice(voices: SpeechSynthesisVoice[]): SpeechSynthesisVoice 
 type PlaybackState = "idle" | "loading" | "cloning" | "playing" | "unavailable" | "limited";
 
 export default function ListenButton({ text, messageId }: { text: string; messageId: string }) {
-  const { speakingId, setSpeakingId, voiceId, hasVoiceSample, useMyVoice, setUseMyVoice } = useSpeech();
+  const { speakingId, setSpeakingId, voiceId, hasVoiceSample, useMyVoice, setUseMyVoice, serverVoiceAvailable } =
+    useSpeech();
   const [state, setState] = useState<PlaybackState>("idle");
   const [limitMessage, setLimitMessage] = useState<string | null>(null);
   const [voices, setVoices] = useState<SpeechSynthesisVoice[]>([]);
@@ -204,6 +205,18 @@ export default function ListenButton({ text, messageId }: { text: string; messag
 
     if (useMyVoice && hasVoiceSample) {
       await handleMyVoiceClick();
+      return;
+    }
+
+    // Mobile browsers (notably iOS Safari) only allow speechSynthesis.speak() when it's
+    // called synchronously inside the click handler — an awaited fetch first (even one
+    // that ultimately 503s) breaks that "user gesture" chain and the voice silently never
+    // speaks. When we already know the server has no voice installed at all, skip the
+    // network round-trip entirely and go straight to the browser voice.
+    if (serverVoiceAvailable === false) {
+      setSpeakingId(messageId);
+      setLimitMessage(null);
+      speakWithBrowserFallback();
       return;
     }
 
