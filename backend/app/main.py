@@ -48,9 +48,13 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(title="EchoLearn API", lifespan=lifespan)
 
+# FRONTEND_URL may be a single origin or a comma-separated list (e.g. a production domain
+# plus a Vercel preview-deployment URL) so both can call this API during a deploy.
+_allowed_origins = [origin.strip() for origin in settings.FRONTEND_URL.split(",") if origin.strip()]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[settings.FRONTEND_URL],
+    allow_origins=_allowed_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

@@ -1,0 +1,37 @@
+# Render Blueprint — deploys the FastAPI backend only (the frontend goes on Vercel;
+# voice cloning stays local-only — this service has no GPU/CPU headroom or persistent
+# disk for the worker, and clone-availability just reports "unavailable" without it).
+#
+# Usage: Render dashboard -> New -> Blueprint -> point at this repo. Render reads this
+# file and creates the service below. Env vars marked `sync: false` must be filled in
+# by hand in the Render dashboard after creation (they're secrets / external URLs that
+# don't belong in git).
+services:
+  - type: web
+    name: echolearn-backend
+    runtime: python
+    plan: free
+    rootDir: backend
+    buildCommand: "pip install -r requirements.txt && alembic upgrade head"
+    startCommand: "uvicorn app.main:app --host 0.0.0.0 --port $PORT"
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.9
+      - key: DATABASE_URL
+        sync: false # Neon connection string, e.g. postgresql://user:pass@ep-xxx.neon.tech/db?sslmode=require
+      - key: JWT_SECRET
+        generateValue: true
+      - key: GROQ_API_KEY
+        sync: false
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: RESEND_API_KEY
+        sync: false
+      - key: FRONTEND_URL
+        sync: false # your Vercel URL(s), comma-separated, e.g. https://echolearn.vercel.app
+      - key: QDRANT_URL
+        sync: false # Qdrant Cloud cluster URL — Chroma's local disk doesn't survive this plan's restarts
+      - key: QDRANT_API_KEY
+        sync: false
+      - key: MAX_UPLOAD_SIZE_MB
+        value: "50"

@@ -165,3 +165,4 @@ xxhash==4.0.1
 yarl==1.24.5
 yt-dlp==2026.8.19
 zstandard==0.25.0
+qdrant-client==1.11.3
