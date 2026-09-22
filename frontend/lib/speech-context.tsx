@@ -30,6 +30,12 @@ interface SpeechContextValue {
   refreshVoiceSample: () => void;
   useMyVoice: boolean;
   setUseMyVoice: (v: boolean) => void;
+  // Whether the server has any default (non-cloned) voice installed at all. Checked once
+  // at mount rather than per click: mobile browsers (notably iOS Safari) only allow
+  // speechSynthesis.speak() when it's called synchronously inside the click handler, not
+  // after an awaited network request — so ListenButton needs to know *before* the click
+  // whether it should skip straight to the browser voice instead of trying the server first.
+  serverVoiceAvailable: boolean | null; // null = not checked yet
 }
 
 const SpeechContext = createContext<SpeechContextValue | undefined>(undefined);
@@ -40,6 +46,7 @@ export function SpeechProvider({ children }: { children: ReactNode }) {
   const [recognitionLang, setRecognitionLangState] = useState<string>(DEFAULT_RECOGNITION_LANG);
   const [hasVoiceSample, setHasVoiceSample] = useState(false);
   const [useMyVoice, setUseMyVoice] = useState(false);
+  const [serverVoiceAvailable, setServerVoiceAvailable] = useState<boolean | null>(null);
 
   useEffect(() => {
     try {
@@ -64,6 +71,14 @@ export function SpeechProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     refreshVoiceSample();
   }, [refreshVoiceSample]);
+
+  useEffect(() => {
+    const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+    fetch(`${apiUrl}/voice/voices`)
+      .then((res) => (res.ok ? res.json() : []))
+      .then((voices: unknown[]) => setServerVoiceAvailable(Array.isArray(voices) && voices.length > 0))
+      .catch(() => setServerVoiceAvailable(false));
+  }, []);
 
   const setSpeakingId = useCallback((id: string | null) => {
     setSpeakingIdState(id);
@@ -100,6 +115,7 @@ export function SpeechProvider({ children }: { children: ReactNode }) {
         refreshVoiceSample,
         useMyVoice,
         setUseMyVoice,
+        serverVoiceAvailable,
       }}
     >
       {children}
