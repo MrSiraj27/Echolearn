@@ -35,6 +35,9 @@ services:
         sync: false
       - key: MAX_UPLOAD_SIZE_MB
         value: "50"
+      - key: WHISPER_MODEL_SIZE
+        value: tiny # smaller/faster than the "base" default — this plan's 512MB has very
+        # little headroom left once the embedding model is also loaded for a chat/upload
       - key: R2_ENDPOINT_URL
         sync: false # Cloudflare R2 — leave all 4 R2_* blank to skip file backup (uploads won't survive a restart)
       - key: R2_ACCESS_KEY_ID
