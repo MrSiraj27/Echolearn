@@ -1,5 +1,6 @@
 import mimetypes
 import os
+from pathlib import Path
 import uuid
 
 from fastapi import APIRouter, BackgroundTasks, Depends, Form, HTTPException, Request, UploadFile, status
@@ -26,6 +27,7 @@ from app.documents.schemas import (
     ReportDocumentRequest,
     TranscriptSegmentResponse,
 )
+from app.documents.object_storage import download_dir
 from app.documents.storage import delete_document_files
 from app.documents.upload_service import ingest_upload
 from app.folders.schemas import MoveDocumentRequest
@@ -209,6 +211,9 @@ def get_document_media(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Document not found.")
 
     file_path = document.storage_path
+    if file_path and not os.path.isfile(file_path):
+        # Local disk may have been wiped since this was written — restore from R2 if configured.
+        download_dir(f"{document.user_id}/{document.id}", Path(file_path).parent)
     if not file_path or not os.path.isfile(file_path):
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Media file not found on disk.")
 

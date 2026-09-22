@@ -16,6 +16,16 @@ class Settings(BaseSettings):
     QDRANT_API_KEY: str = ""
     HF_HOME: str = ""
 
+    # Object storage (optional): an S3-compatible bucket (e.g. Cloudflare R2's free tier)
+    # that backs up each document's original file + parsed text, so they survive a restart
+    # on a host with an ephemeral filesystem (e.g. Render's free tier). Local disk under
+    # STORAGE_PATH is still used as a working/cache copy; see app/documents/object_storage.py.
+    # Leave all four blank to disable and rely on local disk only (fine for local dev).
+    R2_ENDPOINT_URL: str = ""
+    R2_ACCESS_KEY_ID: str = ""
+    R2_SECRET_ACCESS_KEY: str = ""
+    R2_BUCKET: str = ""
+
     VOICE_BACKEND: str = "local"  # "local" (in-process Piper) or "hf_space" (remote Space)
     VOICE_MODEL_PATH: str = "./voices/en_US-lessac-medium.onnx"
     VOICE_HF_SPACE_URL: str = ""

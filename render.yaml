@@ -35,3 +35,11 @@ services:
         sync: false
       - key: MAX_UPLOAD_SIZE_MB
         value: "50"
+      - key: R2_ENDPOINT_URL
+        sync: false # Cloudflare R2 — leave all 4 R2_* blank to skip file backup (uploads won't survive a restart)
+      - key: R2_ACCESS_KEY_ID
+        sync: false
+      - key: R2_SECRET_ACCESS_KEY
+        sync: false
+      - key: R2_BUCKET
+        sync: false

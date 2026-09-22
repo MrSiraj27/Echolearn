@@ -2,6 +2,7 @@ import json
 from pathlib import Path
 
 from app.documents.background import parsed_text_path
+from app.documents.object_storage import download_dir
 from app.models import Document
 
 
@@ -13,6 +14,10 @@ def load_pages(document: Document) -> list[dict]:
     """Returns the cached [{"page_number": int, "text": str}, ...] list produced during
     parsing, or [] if the parsed cache is missing (e.g. document still processing)."""
     path = parsed_text_path(_document_dir(document))
+    if not path.exists():
+        # Local disk may have been wiped (restart/redeploy on an ephemeral host) since
+        # this was written — restore this document's files from R2 if configured.
+        download_dir(f"{document.user_id}/{document.id}", _document_dir(document))
     if not path.exists():
         return []
     return json.loads(path.read_text(encoding="utf-8"))
