@@ -36,8 +36,28 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 
+def _run_migrations() -> None:
+    """Run Alembic migrations to head on startup. Idempotent (a no-op if already at
+    head), so it's safe to run on every boot. This makes deploys portable to hosts that
+    don't offer a separate "build command" step (e.g. Koyeb's buildpack, unlike Render's
+    render.yaml buildCommand which already runs this explicitly too)."""
+    import os
+
+    from alembic import command
+    from alembic.config import Config
+
+    try:
+        backend_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        cfg = Config(os.path.join(backend_dir, "alembic.ini"))
+        command.upgrade(cfg, "head")
+        logger.info("Alembic migrations up to date.")
+    except Exception:
+        logger.exception("Startup migration failed — the app will still start, but the DB schema may be stale.")
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    _run_migrations()
     if settings.VOICE_BACKEND == "local":
         load_voice_model()  # Loaded once here, not per-request — model load is the slow part.
     load_clone_model()  # only logs whether the isolated cloning worker is installed; it starts lazily
