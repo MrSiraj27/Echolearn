@@ -1,11 +1,96 @@
 import json
+import re
 import uuid
 
-from langchain_text_splitters import RecursiveCharacterTextSplitter
-
-_splitter = RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=150)
-
 AUDIO_CHUNK_CHAR_TARGET = 900
+
+
+class _RecursiveCharacterTextSplitter:
+    """A vendored copy of langchain_text_splitters.RecursiveCharacterTextSplitter's
+    split_text (character-length, keep_separator=True, default separators), reimplemented
+    here to avoid importing the langchain_text_splitters package: its __init__.py
+    unconditionally imports SentenceTransformersTokenTextSplitter, which pulls in the full
+    torch + transformers stack (400+MB RSS) just to reach this one class we actually use —
+    a real problem on a memory-constrained host. Behavior verified to match upstream
+    output exactly across representative inputs; see the class this replaces if upstream's
+    algorithm ever needs to be re-synced."""
+
+    def __init__(self, chunk_size: int, chunk_overlap: int, separators: list[str] | None = None):
+        self._chunk_size = chunk_size
+        self._chunk_overlap = chunk_overlap
+        self._separators = separators or ["\n\n", "\n", " ", ""]
+
+    @staticmethod
+    def _split_with_separator(text: str, separator: str) -> list[str]:
+        if not separator:
+            return list(text)
+        # keep_separator=True: re-attach each separator to the text that follows it.
+        pattern = f"({re.escape(separator)})"
+        parts = re.split(pattern, text)
+        merged = [parts[i] + parts[i + 1] for i in range(1, len(parts), 2)]
+        if len(parts) % 2 == 0:
+            merged += parts[-1:]
+        merged = [parts[0], *merged]
+        return [s for s in merged if s]
+
+    def _merge_splits(self, splits: list[str]) -> list[str]:
+        docs: list[str] = []
+        current: list[str] = []
+        total = 0
+        for piece in splits:
+            length = len(piece)
+            if total + length > self._chunk_size:
+                if current:
+                    joined = "".join(current).strip()
+                    if joined:
+                        docs.append(joined)
+                    while total > self._chunk_overlap or (total + length > self._chunk_size and total > 0):
+                        total -= len(current[0])
+                        current = current[1:]
+            current.append(piece)
+            total += length
+        if current:
+            joined = "".join(current).strip()
+            if joined:
+                docs.append(joined)
+        return docs
+
+    def _split(self, text: str, separators: list[str]) -> list[str]:
+        separator = separators[-1]
+        new_separators: list[str] = []
+        for i, candidate in enumerate(separators):
+            if not candidate:
+                separator = candidate
+                break
+            if re.search(re.escape(candidate), text):
+                separator = candidate
+                new_separators = separators[i + 1 :]
+                break
+
+        splits = self._split_with_separator(text, separator)
+
+        final_chunks: list[str] = []
+        good_splits: list[str] = []
+        for piece in splits:
+            if len(piece) < self._chunk_size:
+                good_splits.append(piece)
+                continue
+            if good_splits:
+                final_chunks.extend(self._merge_splits(good_splits))
+                good_splits = []
+            if not new_separators:
+                final_chunks.append(piece)
+            else:
+                final_chunks.extend(self._split(piece, new_separators))
+        if good_splits:
+            final_chunks.extend(self._merge_splits(good_splits))
+        return final_chunks
+
+    def split_text(self, text: str) -> list[str]:
+        return self._split(text, self._separators)
+
+
+_splitter = _RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=150)
 
 
 def chunk_text(

@@ -27,7 +27,6 @@ from app.study.review_routes import review_cards_router, review_router
 from app.users.routes import router as users_router
 from app.voice.routes import router as voice_router
 from app.workspaces.routes import router as workspaces_router
-from app.voice.tts import load_voice_model
 from app.voice.clone_background import fail_interrupted_jobs
 from app.voice.clone_model import load_clone_model, shutdown_clone_worker
 from app.voice.clone_routes import router as voice_clone_router
@@ -58,8 +57,11 @@ def _run_migrations() -> None:
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     _run_migrations()
-    if settings.VOICE_BACKEND == "local":
-        load_voice_model()  # Loaded once here, not per-request — model load is the slow part.
+    # The default Piper voice used to load eagerly here ("so the first request isn't
+    # slow"), same as every other voice already loads lazily on first use (see
+    # app/voice/tts.py's synthesize_speech). Loading it costs ~130MB of RSS, which a
+    # memory-constrained host (e.g. Render's free 512MB tier) can't spare at boot — so it
+    # now loads lazily too, trading a slower first /voice/speak call for headroom.
     load_clone_model()  # only logs whether the isolated cloning worker is installed; it starts lazily
     fail_interrupted_jobs()
     yield
