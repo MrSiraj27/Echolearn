@@ -1,12 +1,11 @@
 import logging
-
-import resend
+import smtplib
+from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
 
 from app.core.config import settings
 
 logger = logging.getLogger(__name__)
-
-resend.api_key = settings.RESEND_API_KEY
 
 FROM_ADDRESS = "EchoLearn <onboarding@resend.dev>"
 
@@ -68,18 +67,36 @@ def send_password_reset_email(to_email: str, token: str) -> None:
     _send(to_email, "Reset your EchoLearn password", html)
 
 
+def _send_via_smtp(to_email: str, subject: str, html: str) -> None:
+    msg = MIMEMultipart("alternative")
+    msg["Subject"] = subject
+    msg["From"] = settings.SMTP_FROM_EMAIL
+    msg["To"] = to_email
+    msg.attach(MIMEText(html, "html"))
+
+    with smtplib.SMTP(settings.SMTP_HOST, settings.SMTP_PORT, timeout=15) as server:
+        server.starttls()
+        server.login(settings.SMTP_USERNAME, settings.SMTP_PASSWORD)
+        server.sendmail(settings.SMTP_FROM_EMAIL, [to_email], msg.as_string())
+
+
+def _send_via_resend(to_email: str, subject: str, html: str) -> None:
+    import resend
+
+    resend.api_key = settings.RESEND_API_KEY
+    resend.Emails.send({"from": FROM_ADDRESS, "to": [to_email], "subject": subject, "html": html})
+
+
 def _send(to_email: str, subject: str, html: str) -> None:
-    if not settings.RESEND_API_KEY:
-        logger.warning("RESEND_API_KEY not set — skipping email send to %s: %s", to_email, subject)
-        return
+    # SMTP (e.g. SMTP2GO) takes priority: unlike Resend's sandbox, a verified single
+    # sender email lets it deliver to any real recipient, not just the account owner.
+    smtp_configured = all([settings.SMTP_HOST, settings.SMTP_USERNAME, settings.SMTP_PASSWORD, settings.SMTP_FROM_EMAIL])
     try:
-        resend.Emails.send(
-            {
-                "from": FROM_ADDRESS,
-                "to": [to_email],
-                "subject": subject,
-                "html": html,
-            }
-        )
+        if smtp_configured:
+            _send_via_smtp(to_email, subject, html)
+        elif settings.RESEND_API_KEY:
+            _send_via_resend(to_email, subject, html)
+        else:
+            logger.warning("No email backend configured — skipping email send to %s: %s", to_email, subject)
     except Exception:
         logger.exception("Failed to send email to %s", to_email)

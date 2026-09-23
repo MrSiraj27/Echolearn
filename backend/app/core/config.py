@@ -7,6 +7,16 @@ class Settings(BaseSettings):
     GROQ_API_KEY: str = ""
     GEMINI_API_KEY: str = ""
     RESEND_API_KEY: str = ""
+    # Generic SMTP (used instead of Resend when set): Resend's free tier only delivers to
+    # the account owner's own address without a verified custom domain, which most people
+    # signing up don't have. SMTP2GO's free tier (smtp2go.com) lets you verify a single
+    # sender EMAIL you already own — no domain/DNS needed — and then send to any real
+    # recipient. Any standard SMTP provider works here, not just SMTP2GO.
+    SMTP_HOST: str = ""
+    SMTP_PORT: int = 587
+    SMTP_USERNAME: str = ""
+    SMTP_PASSWORD: str = ""
+    SMTP_FROM_EMAIL: str = ""
     FRONTEND_URL: str = "http://localhost:3000"
     STORAGE_PATH: str = "./storage"
     CHROMA_PATH: str = "./chroma_data"
