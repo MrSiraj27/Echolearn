@@ -1,12 +1,9 @@
 """Async job processing for voice cloning — same FastAPI BackgroundTasks pattern as
 app/documents/background.py.
 
-Concurrency: at most ONE clone inference runs at a time, enforced by a module-level
-threading.Semaphore held only around the actual worker call (not around job
-bookkeeping). BackgroundTasks runs this sync function in the framework threadpool, so
-waiting jobs park a pool thread but never the event loop — the rest of the API stays
-responsive while a clone is generating (the heavy CPU work is in the separate worker
-process anyway). The semaphore is released in `finally` (via `with`).
+The actual synthesis is a remote Fish Audio API call now (see clone_model.py), not a
+local CPU-bound worker, so there's no local resource to serialize access to — multiple
+clone jobs can run concurrently without contention.
 
 Billing: a UsageEvent("voice_clone_use") is written ONLY after a job is confirmed
 successful (valid, non-silent WAV saved), in the same transaction that marks the job
@@ -16,7 +13,6 @@ queued/processing jobs as pending, so users can't queue unlimited work.
 import hashlib
 import io
 import logging
-import threading
 import time
 import uuid
 import wave
@@ -27,17 +23,15 @@ from sqlalchemy.orm import Session
 
 from app.core.config import settings
 from app.core.database import SessionLocal
-from app.models import UsageEvent, VoiceCloneJob, VoiceCloneJobStatus
+from app.models import User, UsageEvent, VoiceCloneJob, VoiceCloneJobStatus
 from app.voice.clone_model import (
     CloneFailedError,
     CloneUnavailableError,
-    synthesize_cloned_speech,
-    wait_for_worker,
+    create_fish_voice_model,
+    synthesize_via_fish,
 )
 
 logger = logging.getLogger(__name__)
-
-_clone_semaphore = threading.Semaphore(1)
 
 
 def sample_path(user_id: uuid.UUID) -> Path:
@@ -53,19 +47,25 @@ def output_path(user_id: uuid.UUID, job_id: uuid.UUID) -> Path:
 
 
 def validate_wav_output(data: bytes) -> tuple[int, int, float]:
-    """Parse the worker's WAV and sanity-check it. Returns (sample_rate, channels, seconds).
-    Raises ValueError for malformed / empty / all-silent audio."""
+    """Parse the WAV and sanity-check it. Returns (sample_rate, channels, seconds).
+    Raises ValueError for malformed / empty / all-silent audio.
+
+    Duration is computed from the actual PCM bytes read, not the header's declared frame
+    count: Fish Audio's API streams its response, so that field is a bogus placeholder
+    (observed: a few seconds of real audio reporting as ~13.5 hours) — harmless for
+    playback (players read actual bytes, not the declared size) but useless for logging."""
     try:
         with wave.open(io.BytesIO(data), "rb") as w:
-            rate, ch, frames = w.getframerate(), w.getnchannels(), w.getnframes()
-            pcm = w.readframes(frames)
+            rate, ch, framesize = w.getframerate(), w.getnchannels(), w.getsampwidth() * w.getnchannels()
+            pcm = w.readframes(w.getnframes())
     except (wave.Error, EOFError) as exc:
         raise ValueError(f"not a valid WAV: {exc}") from exc
-    if frames <= 0 or rate <= 0:
+    if rate <= 0 or framesize <= 0 or not pcm:
         raise ValueError("empty audio")
     if not pcm.strip(b"\x00"):
         raise ValueError("silent audio")
-    return rate, ch, frames / float(rate)
+    actual_frames = len(pcm) / framesize
+    return rate, ch, actual_frames / float(rate)
 
 
 def _fail(db: Session, job: VoiceCloneJob, message: str, started: float | None = None) -> None:
@@ -100,11 +100,22 @@ def process_clone_job(job_id: uuid.UUID, text: str) -> None:
                 _fail(db, job, "Your voice sample changed while this was queued. Please try again.")
                 return
 
-            wait_for_worker()  # model load (first use) is not counted as inference time
-            with _clone_semaphore:  # only the actual inference is gated
-                started = time.perf_counter()
-                audio_bytes = synthesize_cloned_speech(text, ref_bytes)
-                elapsed_ms = (time.perf_counter() - started) * 1000
+            user = db.query(User).filter(User.id == job.user_id).first()
+            if not user:
+                _fail(db, job, "Your account could not be found.")
+                return
+
+            started = time.perf_counter()
+            # Reuse the cached Fish Audio voice model for this sample if one already
+            # exists (cleared to None whenever the sample is replaced/deleted — see
+            # clone_routes.py) — avoids re-uploading the reference clip on every message.
+            reference_id = user.fish_voice_model_id
+            if not reference_id:
+                reference_id = create_fish_voice_model(ref_bytes)
+                user.fish_voice_model_id = reference_id
+                db.commit()
+            audio_bytes = synthesize_via_fish(text, reference_id)
+            elapsed_ms = (time.perf_counter() - started) * 1000
 
             try:
                 rate, channels, seconds = validate_wav_output(audio_bytes)

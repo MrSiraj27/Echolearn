@@ -37,6 +37,10 @@ class User(Base):
 
     # Voice cloning (Prompt 28). Set once a reference sample is uploaded; cleared on delete.
     cloned_voice_sample_hash: Mapped[str | None] = mapped_column(String, nullable=True)
+    # Fish Audio voice model id created from the current sample — cached so repeated
+    # clone requests reuse it instead of re-uploading the reference clip every time.
+    # Cleared (set back to None) whenever the sample is replaced or deleted.
+    fish_voice_model_id: Mapped[str | None] = mapped_column(String, nullable=True)
     # Opt-in: clone each new assistant reply in the background so Listen is instant.
     voice_pregenerate: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False, server_default=text("false"))
 

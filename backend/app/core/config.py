@@ -41,16 +41,10 @@ class Settings(BaseSettings):
     VOICE_HF_SPACE_URL: str = ""
     VOICE_AUDIO_CACHE_PATH: str = "./storage/audio"
 
-    # Voice cloning runs in an ISOLATED local worker process (MOSS-TTS-Nano, ONNX/CPU) with its
-    # own venv, because its pinned torch/transformers conflict with this app's stack. See
-    # backend/voice_worker/README.md. If the worker isn't set up, "My Voice" reports 503.
-    VOICE_CLONE_WORKER_PYTHON: str = ""  # default: models/moss-tts-nano/venv/{Scripts/python.exe|bin/python}
-    VOICE_CLONE_WORKER_SCRIPT: str = "./voice_worker/worker.py"
-    VOICE_CLONE_WORKER_PORT: int = 8765
-    VOICE_CLONE_WORKER_AUTOSTART: bool = True  # spawn lazily on the first clone request
-    VOICE_CLONE_WORKER_THREADS: int = 0  # 0 = worker picks (half the CPU cores)
-    VOICE_CLONE_WORKER_LOAD_TIMEOUT_SECONDS: int = 300  # first run may also download ~700MB of weights
-    VOICE_CLONE_REQUEST_TIMEOUT_SECONDS: int = 600
+    # Voice cloning: Fish Audio API (api.fish.audio) — no local model/worker, works
+    # identically on any host. Free tier (s2.1-pro-free model) has no hard usage cap
+    # under fair use and needs no card. If unset, "My Voice" reports 503.
+    FISH_AUDIO_API_KEY: str = ""
 
     # "small"/"base" balance speed and CPU/RAM use for free hosting; "medium"/"large"
     # are far more accurate but need much more RAM and are usually too slow on a CPU-only

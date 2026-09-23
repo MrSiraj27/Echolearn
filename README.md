@@ -68,17 +68,17 @@ download command. Without it, the app still runs; `/voice/speak` just returns
 
 ### 4b. Voice cloning (optional)
 
-"My Voice" reads answers in a voice cloned from a 3-20 s sample of yours, fully locally on CPU
-via MOSS-TTS-Nano. It runs as an **isolated worker with its own venv** (its pinned torch would
-break the main backend), started lazily by the backend on first use.
+"My Voice" reads answers in a voice cloned from a 3-20 s sample of yours, via the
+[Fish Audio](https://fish.audio) API (no local model, no GPU/CPU cost — works the same on
+any host). Sign up free (no card), grab an API key, and set:
 
-```bash
-python backend/voice_worker/setup_worker.py     # one time: venv + deps + ~700 MB of weights
+```
+FISH_AUDIO_API_KEY=...
 ```
 
-Details: [backend/voice_worker/README.md](backend/voice_worker/README.md). If you skip this, the
-app runs normally and "My Voice" reports that voice cloning is unavailable (HTTP 503); the default
-voice is unaffected. Cloning also needs a plan/limit with `voice_clone_uses_per_day` above 0.
+in `backend/.env`. If you skip this, the app runs normally and "My Voice" reports that
+voice cloning is unavailable (HTTP 503); the default voice is unaffected. Cloning also
+needs a plan/limit with `voice_clone_uses_per_day` above 0.
 
 ### 5. Run both servers
 

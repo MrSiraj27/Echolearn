@@ -1,6 +1,5 @@
-# Render Blueprint — deploys the FastAPI backend only (the frontend goes on Vercel;
-# voice cloning stays local-only — this service has no GPU/CPU headroom or persistent
-# disk for the worker, and clone-availability just reports "unavailable" without it).
+# Render Blueprint — deploys the FastAPI backend only (the frontend goes on Vercel).
+# Voice cloning uses the Fish Audio API (no local model, no GPU/CPU cost to this plan).
 #
 # Usage: Render dashboard -> New -> Blueprint -> point at this repo. Render reads this
 # file and creates the service below. Env vars marked `sync: false` must be filled in
@@ -56,3 +55,5 @@ services:
         sync: false
       - key: SMTP_FROM_EMAIL
         sync: false
+      - key: FISH_AUDIO_API_KEY
+        sync: false # fish.audio — leave blank to keep "My Voice" reporting unavailable (503)

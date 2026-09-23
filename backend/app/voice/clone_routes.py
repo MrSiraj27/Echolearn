@@ -82,6 +82,7 @@ async def upload_sample(
     sample_path(current_user.id).write_bytes(content)
 
     current_user.cloned_voice_sample_hash = hashlib.sha256(content).hexdigest()
+    current_user.fish_voice_model_id = None  # sample changed — recreate the Fish model lazily on next use
     db.commit()
 
     logger.info("Voice sample uploaded for user %s (file %s, %.1fs)", current_user.id, safe_name, duration)
@@ -121,6 +122,7 @@ def delete_sample(current_user: User = Depends(get_current_user), db: Session = 
     if path.exists():
         path.unlink()
     current_user.cloned_voice_sample_hash = None
+    current_user.fish_voice_model_id = None
     db.commit()
     return {"has_sample": False}
 

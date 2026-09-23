@@ -1,29 +1,19 @@
-"""Voice-cloning synthesis client + isolated worker manager.
+"""Voice-cloning synthesis client — backed by the Fish Audio API (api.fish.audio).
 
-Real zero-shot voice cloning is done by MOSS-TTS-Nano (Apache-2.0, 0.1B params, ONNX,
-CPU). It is NOT imported into this process: the upstream project pins torch==2.7.0 /
-transformers==4.57.1, which hard-conflict with this backend's torch 2.13 / transformers
-5.x stack (installing it here would break RAG embeddings and Whisper). Instead it runs as
-an ISOLATED LOCAL WORKER (backend/voice_worker/worker.py) in its own venv, bound to
-127.0.0.1 only. This module:
+Previously this ran MOSS-TTS-Nano as an isolated local worker process (its own venv,
+CPU-bound inference). That worked, but needed real RAM/CPU no free hosting tier has to
+spare (~130-180MB just for the model, plus real inference time on a throttled CPU) — it's
+why voice cloning was local-dev-only on the deployed site. Fish Audio's `s2.1-pro-free`
+API model has no hard usage cap under fair use and needs no card, so cloning now works
+identically wherever the backend runs, with zero local memory/CPU cost: two HTTP calls
+(create a voice model from the reference clip, then synthesize with it) instead of a
+subprocess.
 
-  * launches that worker lazily (first clone request) as a subprocess and terminates it on
-    backend shutdown (the worker also watches this process's PID, so it can't leak when
-    uvicorn --reload / a hard kill takes the backend down),
-  * health-checks it, and
-  * calls POST /clone with httpx (reference WAV + text -> 48 kHz stereo WAV bytes).
-
-There is deliberately NO fallback voice: if the worker or its model is unavailable, the
-functions here raise CloneUnavailableError and the routes answer 503. Nothing silently
-substitutes a stock Piper voice for a "cloned" one.
+There is deliberately NO fallback voice: if the API key isn't configured or a call fails,
+the functions here raise CloneUnavailableError/CloneFailedError and the routes answer 503.
+Nothing silently substitutes a stock voice for a "cloned" one.
 """
-import atexit
 import logging
-import os
-import subprocess
-import threading
-import time
-from pathlib import Path
 
 import httpx
 
@@ -31,190 +21,104 @@ from app.core.config import settings
 
 logger = logging.getLogger(__name__)
 
-BACKEND_DIR = Path(__file__).resolve().parents[2]
-_MODEL_ROOT = BACKEND_DIR / "models" / "moss-tts-nano"
-_WORKER_LOG = BACKEND_DIR / "voice_worker.log"  # covered by the backend/*.log gitignore rule
+FISH_API_BASE = "https://api.fish.audio"
+FISH_MODEL_HEADER = "s2.1-pro-free"  # no hard usage cap under Fish Audio's fair-use policy
 
 
 class CloneUnavailableError(Exception):
-    """The worker/model can't be used right now (not set up, not started, crashed, loading timed out)."""
+    """The API isn't usable right now (not configured, auth/quota problem, unreachable)."""
 
 
 class CloneFailedError(Exception):
-    """The worker is up but could not synthesize this request (bad reference audio, etc.)."""
-
-
-def _resolve(path_str: str) -> Path:
-    p = Path(path_str)
-    return p if p.is_absolute() else (BACKEND_DIR / p).resolve()
-
-
-def worker_python() -> Path:
-    if settings.VOICE_CLONE_WORKER_PYTHON:
-        return _resolve(settings.VOICE_CLONE_WORKER_PYTHON)
-    sub = "Scripts/python.exe" if os.name == "nt" else "bin/python"
-    return _MODEL_ROOT / "venv" / sub
-
-
-def worker_script() -> Path:
-    return _resolve(settings.VOICE_CLONE_WORKER_SCRIPT)
+    """The API is reachable but could not synthesize this request (bad reference audio, etc.)."""
 
 
 def worker_setup_problem() -> str | None:
-    """None if the worker is installed; otherwise a human-readable reason."""
-    if not worker_python().is_file():
-        return "The voice-cloning worker is not set up on this server (see backend/voice_worker/README.md)."
-    if not worker_script().is_file():
-        return "The voice-cloning worker script is missing on this server."
-    if not (_MODEL_ROOT / "repo" / "onnx_tts_runtime.py").is_file():
-        return "The MOSS-TTS-Nano runtime is not installed on this server (see backend/voice_worker/README.md)."
+    """None if voice cloning is usable; otherwise a human-readable reason. Named
+    worker_setup_problem for compatibility with the route/schema code that calls it."""
+    if not settings.FISH_AUDIO_API_KEY:
+        return "Voice cloning isn't configured on this server (FISH_AUDIO_API_KEY is not set)."
     return None
-
-
-def _base_url() -> str:
-    return f"http://127.0.0.1:{settings.VOICE_CLONE_WORKER_PORT}"
-
-
-def worker_health(timeout: float = 2.0) -> dict | None:
-    """The worker's /health payload, or None if nothing is answering."""
-    try:
-        r = httpx.get(f"{_base_url()}/health", timeout=timeout)
-        if r.status_code == 200:
-            return r.json()
-    except (httpx.HTTPError, ValueError):
-        pass
-    return None
-
-
-class _WorkerManager:
-    def __init__(self) -> None:
-        self._lock = threading.Lock()
-        self._proc: subprocess.Popen | None = None
-        self._log_handle = None
-
-    def _alive(self) -> bool:
-        return self._proc is not None and self._proc.poll() is None
-
-    def ensure_started(self) -> None:
-        """Make sure a worker process exists (does not wait for the model to load).
-        Raises CloneUnavailableError if it can't be launched."""
-        problem = worker_setup_problem()
-        if problem:
-            raise CloneUnavailableError(problem)
-        with self._lock:
-            if self._alive() or worker_health() is not None:
-                return  # ours is running, or an already-healthy worker is bound to the port (adopt it)
-            if not settings.VOICE_CLONE_WORKER_AUTOSTART:
-                raise CloneUnavailableError("The voice-cloning worker is not running.")
-            self._spawn()
-
-    def _spawn(self) -> None:
-        cmd = [
-            str(worker_python()),
-            str(worker_script()),
-            "--host", "127.0.0.1",
-            "--port", str(settings.VOICE_CLONE_WORKER_PORT),
-            "--parent-pid", str(os.getpid()),
-        ]
-        if settings.VOICE_CLONE_WORKER_THREADS > 0:
-            cmd += ["--threads", str(settings.VOICE_CLONE_WORKER_THREADS)]
-        kwargs: dict = {}
-        if os.name == "nt":
-            kwargs["creationflags"] = subprocess.CREATE_NO_WINDOW | subprocess.CREATE_NEW_PROCESS_GROUP
-        try:
-            self._log_handle = open(_WORKER_LOG, "ab")
-            self._proc = subprocess.Popen(
-                cmd, cwd=str(BACKEND_DIR), stdout=self._log_handle, stderr=subprocess.STDOUT,
-                stdin=subprocess.DEVNULL, **kwargs,
-            )
-        except OSError as exc:
-            self._proc = None
-            raise CloneUnavailableError(f"Could not start the voice-cloning worker: {exc}") from exc
-        logger.info("Started voice-cloning worker pid=%s port=%s", self._proc.pid, settings.VOICE_CLONE_WORKER_PORT)
-
-    def wait_ready(self, timeout: float) -> None:
-        deadline = time.monotonic() + timeout
-        while time.monotonic() < deadline:
-            health = worker_health()
-            if health is not None:
-                if health.get("status") == "ready":
-                    return
-                if health.get("status") == "error":
-                    raise CloneUnavailableError(f"Voice model failed to load: {health.get('error')}")
-            elif self._proc is not None and self._proc.poll() is not None:
-                raise CloneUnavailableError(
-                    f"The voice-cloning worker exited during startup (code {self._proc.returncode}); see voice_worker.log."
-                )
-            time.sleep(1.0)
-        raise CloneUnavailableError("The voice model is still loading. Please try again in a minute.")
-
-    def shutdown(self) -> None:
-        with self._lock:
-            proc, self._proc = self._proc, None
-        if proc is not None and proc.poll() is None:
-            logger.info("Stopping voice-cloning worker pid=%s", proc.pid)
-            proc.terminate()
-            try:
-                proc.wait(timeout=5)
-            except subprocess.TimeoutExpired:
-                proc.kill()
-        if self._log_handle:
-            try:
-                self._log_handle.close()
-            except OSError:
-                pass
-
-
-_manager = _WorkerManager()
-atexit.register(_manager.shutdown)
 
 
 def load_clone_model() -> None:
-    """Startup hook: log whether cloning is installed. Does not spawn the worker (lazy)."""
+    """Startup hook: log whether cloning is configured."""
     problem = worker_setup_problem()
     if problem:
         logger.warning("Voice cloning unavailable: %s", problem)
     else:
-        logger.info("Voice cloning worker installed; it will start on the first clone request.")
+        logger.info("Voice cloning configured (Fish Audio API).")
 
 
 def shutdown_clone_worker() -> None:
-    _manager.shutdown()
+    """No-op now — kept so app/main.py's lifespan doesn't need to change."""
 
 
 def prepare_worker() -> None:
-    """Called by the clone-request route: start the worker if needed. Raises
-    CloneUnavailableError if it isn't installed or can't be launched."""
-    _manager.ensure_started()
+    """Called by the clone-request route before queuing a job. Raises
+    CloneUnavailableError if the API key isn't configured."""
+    problem = worker_setup_problem()
+    if problem:
+        raise CloneUnavailableError(problem)
 
 
-def wait_for_worker() -> None:
-    _manager.ensure_started()
-    _manager.wait_ready(float(settings.VOICE_CLONE_WORKER_LOAD_TIMEOUT_SECONDS))
+def _headers(extra: dict | None = None) -> dict:
+    h = {"Authorization": f"Bearer {settings.FISH_AUDIO_API_KEY}"}
+    if extra:
+        h.update(extra)
+    return h
+
+
+def _raise_for_response(resp: httpx.Response, context: str) -> None:
+    if resp.status_code == 200 or resp.status_code == 201:
+        return
+    detail = ""
+    try:
+        body = resp.json()
+        detail = body.get("message") or body.get("reason") or str(body)
+    except ValueError:
+        detail = resp.text[:300]
+    if resp.status_code in (401, 402, 429, 503):
+        raise CloneUnavailableError(f"Fish Audio {context} unavailable ({resp.status_code}): {detail}"[:300])
+    raise CloneFailedError(f"Fish Audio {context} failed ({resp.status_code}): {detail}"[:300])
+
+
+def create_fish_voice_model(reference_wav: bytes) -> str:
+    """Uploads a reference clip and returns a Fish Audio model id (`reference_id`) that
+    can be reused for many synthesize_via_fish calls without re-uploading the sample.
+    train_mode="fast" makes the model usable immediately (no async training wait)."""
+    try:
+        resp = httpx.post(
+            f"{FISH_API_BASE}/model",
+            headers=_headers(),
+            data={"type": "tts", "title": "EchoLearn cloned voice", "train_mode": "fast", "visibility": "private"},
+            files={"voices": ("reference.wav", reference_wav, "audio/wav")},
+            timeout=httpx.Timeout(30.0, connect=10.0),
+        )
+    except httpx.HTTPError as exc:
+        raise CloneUnavailableError(f"Could not reach Fish Audio ({type(exc).__name__}).") from exc
+    _raise_for_response(resp, "model creation")
+    return resp.json()["_id"]
+
+
+def synthesize_via_fish(text: str, reference_id: str) -> bytes:
+    """WAV bytes of `text` spoken in the voice identified by `reference_id`."""
+    try:
+        resp = httpx.post(
+            f"{FISH_API_BASE}/v1/tts",
+            headers=_headers({"model": FISH_MODEL_HEADER, "Content-Type": "application/json"}),
+            json={"text": text, "reference_id": reference_id, "format": "wav"},
+            timeout=httpx.Timeout(120.0, connect=10.0),
+        )
+    except httpx.HTTPError as exc:
+        raise CloneUnavailableError(f"Could not reach Fish Audio ({type(exc).__name__}).") from exc
+    _raise_for_response(resp, "speech synthesis")
+    return resp.content
 
 
 def synthesize_cloned_speech(text: str, reference_wav: bytes) -> bytes:
-    """WAV bytes (48 kHz, 2-channel, 16-bit as produced by MOSS-TTS-Nano) of `text` spoken in
-    the voice of `reference_wav`. Blocks (CPU-bound on the worker) — call from a thread.
-    Raises CloneUnavailableError / CloneFailedError; never returns a substitute voice."""
-    _manager.ensure_started()
-    _manager.wait_ready(float(settings.VOICE_CLONE_WORKER_LOAD_TIMEOUT_SECONDS))
-    try:
-        resp = httpx.post(
-            f"{_base_url()}/clone",
-            files={"audio": ("reference.wav", reference_wav, "audio/wav")},
-            data={"text": text},
-            timeout=httpx.Timeout(float(settings.VOICE_CLONE_REQUEST_TIMEOUT_SECONDS), connect=5.0),
-        )
-    except httpx.HTTPError as exc:
-        raise CloneUnavailableError(f"Lost contact with the voice-cloning worker ({type(exc).__name__}).") from exc
-    if resp.status_code == 503:
-        raise CloneUnavailableError("The voice model is not ready.")
-    if resp.status_code != 200:
-        detail = ""
-        try:
-            detail = resp.json().get("detail", "")
-        except ValueError:
-            pass
-        raise CloneFailedError(f"Voice generation failed ({resp.status_code}): {detail}"[:300])
-    return resp.content
+    """Convenience one-shot path (create a model then synthesize) for callers that don't
+    need to cache the model id across calls. The cached path in clone_background.py
+    (which reuses a stored reference_id across requests) is preferred in production."""
+    reference_id = create_fish_voice_model(reference_wav)
+    return synthesize_via_fish(text, reference_id)
