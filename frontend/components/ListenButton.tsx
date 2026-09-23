@@ -22,8 +22,13 @@ const CLONE_POLL_INTERVAL_MS = 3500;
 const CLONE_POLL_MAX_MS = 5 * 60 * 1000;
 const CLONE_POLL_MAX_ERRORS = 3;
 
-function pickBrowserVoice(voices: SpeechSynthesisVoice[]): SpeechSynthesisVoice | undefined {
+function pickBrowserVoice(
+  voices: SpeechSynthesisVoice[],
+  preferredURI: string | null
+): SpeechSynthesisVoice | undefined {
+  const preferred = preferredURI && voices.find((v) => v.voiceURI === preferredURI);
   return (
+    preferred ||
     voices.find((v) => v.lang.startsWith("en") && /female|natural|google/i.test(v.name)) ||
     voices.find((v) => v.lang.startsWith("en")) ||
     voices[0]
@@ -33,11 +38,19 @@ function pickBrowserVoice(voices: SpeechSynthesisVoice[]): SpeechSynthesisVoice 
 type PlaybackState = "idle" | "loading" | "cloning" | "playing" | "unavailable" | "limited";
 
 export default function ListenButton({ text, messageId }: { text: string; messageId: string }) {
-  const { speakingId, setSpeakingId, voiceId, hasVoiceSample, useMyVoice, setUseMyVoice, serverVoiceAvailable } =
-    useSpeech();
+  const {
+    speakingId,
+    setSpeakingId,
+    voiceId,
+    hasVoiceSample,
+    useMyVoice,
+    setUseMyVoice,
+    serverVoiceAvailable,
+    browserVoices,
+    browserVoiceURI,
+  } = useSpeech();
   const [state, setState] = useState<PlaybackState>("idle");
   const [limitMessage, setLimitMessage] = useState<string | null>(null);
-  const [voices, setVoices] = useState<SpeechSynthesisVoice[]>([]);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const objectUrlRef = useRef<string | null>(null);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -48,16 +61,6 @@ export default function ListenButton({ text, messageId }: { text: string; messag
     return () => {
       if (pollRef.current) clearInterval(pollRef.current);
     };
-  }, []);
-
-  useEffect(() => {
-    if (typeof window === "undefined" || !window.speechSynthesis) return;
-    function loadVoices() {
-      setVoices(window.speechSynthesis.getVoices());
-    }
-    loadVoices();
-    window.speechSynthesis.addEventListener("voiceschanged", loadVoices);
-    return () => window.speechSynthesis.removeEventListener("voiceschanged", loadVoices);
   }, []);
 
   // Another message started playing — stop this one.
@@ -99,7 +102,7 @@ export default function ListenButton({ text, messageId }: { text: string; messag
     const utterance = new SpeechSynthesisUtterance(text);
     utterance.rate = 1;
     utterance.pitch = 1;
-    const voice = pickBrowserVoice(voices);
+    const voice = pickBrowserVoice(browserVoices, browserVoiceURI);
     if (voice) utterance.voice = voice;
 
     utterance.onend = () => setSpeakingId(null);
