@@ -6,6 +6,7 @@ const VOICE_ID_STORAGE_KEY = "echolearn_voice_id";
 const DEFAULT_VOICE_ID = "lessac";
 const RECOGNITION_LANG_STORAGE_KEY = "echolearn_recognition_lang";
 const DEFAULT_RECOGNITION_LANG = "en-US";
+const BROWSER_VOICE_STORAGE_KEY = "echolearn_browser_voice_uri";
 
 export const RECOGNITION_LANGUAGES = [
   { code: "en-US", label: "English (US)" },
@@ -36,6 +37,13 @@ interface SpeechContextValue {
   // after an awaited network request — so ListenButton needs to know *before* the click
   // whether it should skip straight to the browser voice instead of trying the server first.
   serverVoiceAvailable: boolean | null; // null = not checked yet
+  // The browser's own installed voices (Web Speech API) — used both as ListenButton's
+  // fallback and, on this deployment (no server voice at all), as the actual voice
+  // picker: most phones/computers ship several voices, and picking one costs the server
+  // nothing, unlike a Piper voice, which needs 60-180MB of RAM per voice.
+  browserVoices: SpeechSynthesisVoice[];
+  browserVoiceURI: string | null; // null = auto-pick
+  setBrowserVoiceURI: (uri: string | null) => void;
 }
 
 const SpeechContext = createContext<SpeechContextValue | undefined>(undefined);
@@ -47,6 +55,8 @@ export function SpeechProvider({ children }: { children: ReactNode }) {
   const [hasVoiceSample, setHasVoiceSample] = useState(false);
   const [useMyVoice, setUseMyVoice] = useState(false);
   const [serverVoiceAvailable, setServerVoiceAvailable] = useState<boolean | null>(null);
+  const [browserVoices, setBrowserVoices] = useState<SpeechSynthesisVoice[]>([]);
+  const [browserVoiceURI, setBrowserVoiceURIState] = useState<string | null>(null);
 
   useEffect(() => {
     try {
@@ -54,9 +64,21 @@ export function SpeechProvider({ children }: { children: ReactNode }) {
       if (stored) setVoiceIdState(stored);
       const storedLang = localStorage.getItem(RECOGNITION_LANG_STORAGE_KEY);
       if (storedLang) setRecognitionLangState(storedLang);
+      const storedBrowserVoice = localStorage.getItem(BROWSER_VOICE_STORAGE_KEY);
+      if (storedBrowserVoice) setBrowserVoiceURIState(storedBrowserVoice);
     } catch {
       // localStorage unavailable — fall back to the defaults.
     }
+  }, []);
+
+  useEffect(() => {
+    if (typeof window === "undefined" || !window.speechSynthesis) return;
+    function loadVoices() {
+      setBrowserVoices(window.speechSynthesis.getVoices());
+    }
+    loadVoices();
+    window.speechSynthesis.addEventListener("voiceschanged", loadVoices);
+    return () => window.speechSynthesis.removeEventListener("voiceschanged", loadVoices);
   }, []);
 
   const refreshVoiceSample = useCallback(() => {
@@ -93,6 +115,16 @@ export function SpeechProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
+  const setBrowserVoiceURI = useCallback((uri: string | null) => {
+    setBrowserVoiceURIState(uri);
+    try {
+      if (uri) localStorage.setItem(BROWSER_VOICE_STORAGE_KEY, uri);
+      else localStorage.removeItem(BROWSER_VOICE_STORAGE_KEY);
+    } catch {
+      // ignore
+    }
+  }, []);
+
   const setRecognitionLang = useCallback((lang: string) => {
     setRecognitionLangState(lang);
     try {
@@ -116,6 +148,9 @@ export function SpeechProvider({ children }: { children: ReactNode }) {
         useMyVoice,
         setUseMyVoice,
         serverVoiceAvailable,
+        browserVoices,
+        browserVoiceURI,
+        setBrowserVoiceURI,
       }}
     >
       {children}

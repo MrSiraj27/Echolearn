@@ -20,7 +20,8 @@ interface MyUsageResponse {
 
 export default function SettingsPage() {
   const router = useRouter();
-  const { refreshVoiceSample } = useSpeech();
+  const { refreshVoiceSample, browserVoices, browserVoiceURI, setBrowserVoiceURI, serverVoiceAvailable } =
+    useSpeech();
   const [usage, setUsage] = useState<MyUsageResponse | null>(null);
   const [hasSample, setHasSample] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -244,6 +245,36 @@ export default function SettingsPage() {
 
           <h1 className="text-2xl font-semibold tracking-tight text-neutral-900 dark:text-neutral-100 mb-2">Settings</h1>
           <p className="text-sm text-neutral-500 dark:text-neutral-400 mb-8">Manage your account preferences.</p>
+
+          <section className="rounded-2xl border border-neutral-200 dark:border-neutral-800 p-6 mb-6">
+            <h2 className="text-sm font-semibold text-neutral-900 dark:text-neutral-100 mb-1">Read-Aloud Voice</h2>
+            <p className="text-xs text-neutral-500 dark:text-neutral-400 mb-4">
+              {serverVoiceAvailable === false
+                ? "Answers are read aloud using your device's own voices. Pick one below."
+                : "Used when the server voice is unavailable, or on devices (like most phones) where it's used by default."}
+            </p>
+            {browserVoices.length > 0 ? (
+              <select
+                value={browserVoiceURI ?? ""}
+                onChange={(e) => setBrowserVoiceURI(e.target.value || null)}
+                className="w-full text-sm border border-neutral-300 dark:border-neutral-700 dark:bg-neutral-900 rounded-lg px-3 py-2"
+              >
+                <option value="">Auto (best available)</option>
+                {browserVoices
+                  .filter((v) => v.lang.toLowerCase().startsWith("en"))
+                  .map((v) => (
+                    <option key={v.voiceURI} value={v.voiceURI}>
+                      {v.name} ({v.lang})
+                    </option>
+                  ))}
+              </select>
+            ) : (
+              <p className="text-xs text-neutral-400">
+                No voices found yet — your browser may still be loading them, or voice output isn&apos;t supported
+                here.
+              </p>
+            )}
+          </section>
 
           <section className="rounded-2xl border border-neutral-200 dark:border-neutral-800 p-6 relative">
             <h2 className="text-sm font-semibold text-neutral-900 dark:text-neutral-100 mb-1">Voice Cloning</h2>
