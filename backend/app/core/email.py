@@ -70,7 +70,7 @@ def send_password_reset_email(to_email: str, token: str) -> None:
 def _send_via_smtp(to_email: str, subject: str, html: str) -> None:
     msg = MIMEMultipart("alternative")
     msg["Subject"] = subject
-    msg["From"] = settings.SMTP_FROM_EMAIL
+    msg["From"] = f"EchoLearn <{settings.SMTP_FROM_EMAIL}>"
     msg["To"] = to_email
     msg.attach(MIMEText(html, "html"))
 
@@ -94,8 +94,10 @@ def _send(to_email: str, subject: str, html: str) -> None:
     try:
         if smtp_configured:
             _send_via_smtp(to_email, subject, html)
+            logger.info("Email sent via SMTP (%s) to %s: %s", settings.SMTP_HOST, to_email, subject)
         elif settings.RESEND_API_KEY:
             _send_via_resend(to_email, subject, html)
+            logger.info("Email sent via Resend to %s: %s", to_email, subject)
         else:
             logger.warning("No email backend configured — skipping email send to %s: %s", to_email, subject)
     except Exception:
