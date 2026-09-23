@@ -141,7 +141,12 @@ def login(payload: LoginRequest, response: Response, db: Session = Depends(get_d
         value=refresh_token,
         httponly=True,
         secure=True,
-        samesite="lax",
+        # "lax" is never sent on a cross-site fetch/XHR (only on a top-level navigation) —
+        # only "none" works here, since the frontend (Vercel) and this API (Render) are on
+        # different registrable domains. Without this, refresh-token silently fails the
+        # moment the in-memory access token is lost (a reload, a new tab, or just the 15
+        # minute expiry), and every subsequent request 401s as if logged out.
+        samesite="none",
         max_age=7 * 24 * 60 * 60,
         path="/auth",
     )
