@@ -1,3 +1,4 @@
+from pydantic import field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -58,6 +59,17 @@ class Settings(BaseSettings):
     REFRESH_TOKEN_EXPIRE_DAYS: int = 7
 
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8")
+
+    @field_validator("*", mode="before")
+    @classmethod
+    def _strip_whitespace(cls, value):
+        # A pasted API key/secret in a host's env var UI (Render, etc.) can easily pick up
+        # a trailing newline or space. httpx (and some other HTTP clients) reject that
+        # outright — httpx.LocalProtocolError: Illegal header value b'Bearer xxx\\n' — as a
+        # local, client-side validation failure, before the request ever reaches the
+        # network. Reproduced and confirmed this exact failure mode with the Fish Audio
+        # API key. Stripping every string setting here prevents the whole class of bug.
+        return value.strip() if isinstance(value, str) else value
 
 
 settings = Settings()
