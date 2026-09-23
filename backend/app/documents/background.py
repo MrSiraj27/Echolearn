@@ -9,9 +9,9 @@ from sqlalchemy.orm import Session
 from app.admin.config_service import get_config_value
 from app.core.config import settings
 from app.core.database import SessionLocal
+from app.documents.object_storage import upload_dir
 from app.documents.parsers import parse_file
 from app.documents.video_url import download_audio_from_url
-from app.documents.object_storage import upload_dir
 from app.models import ContentReport, Document, DocumentStatus
 from app.rag.chunking import chunk_text
 from app.rag.summarizer import generate_document_summary
@@ -135,7 +135,40 @@ def run_url_ingest_task(document_id: uuid.UUID, url: str) -> None:
         document.filename = f"{title}.wav"
         document.storage_path = file_path
         db.commit()
+
+        # Same reasoning as the upload path in upload_service.py: back up the downloaded
+        # audio now, not only after parsing succeeds, so an interruption mid-parse doesn't
+        # leave nothing to retry from.
+        upload_dir(f"{document.user_id}/{document.id}", Path(file_path).parent)
     finally:
         db.close()
 
     run_parsing_task(document_id, file_path, "wav")
+
+
+def fail_interrupted_documents() -> int:
+    """Startup hook: BackgroundTasks don't survive a process restart (a redeploy, a crash,
+    Render's free tier spinning down), so any document still in a non-terminal status
+    belongs to a job that was killed mid-flight — it would otherwise sit as "processing"
+    forever with no way for the user to know it's actually stuck. Mirrors
+    app.voice.clone_background.fail_interrupted_jobs."""
+    db = SessionLocal()
+    try:
+        rows = (
+            db.query(Document)
+            .filter(Document.status.in_([DocumentStatus.uploaded, DocumentStatus.parsing, DocumentStatus.embedded]))
+            .all()
+        )
+        for doc in rows:
+            # "embedded" means chunking/embedding already succeeded (only the
+            # best-effort summary step was interrupted) — the document is actually
+            # already searchable, so promote it rather than discarding usable work.
+            doc.status = DocumentStatus.ready if doc.status == DocumentStatus.embedded else DocumentStatus.failed
+        db.commit()
+        return len(rows)
+    except Exception:
+        logger.exception("Could not clean up interrupted document processing jobs")
+        db.rollback()
+        return 0
+    finally:
+        db.close()
