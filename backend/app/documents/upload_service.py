@@ -1,4 +1,5 @@
 import uuid
+from pathlib import Path
 
 from fastapi import HTTPException, UploadFile, status
 from sqlalchemy.orm import Session
@@ -6,6 +7,7 @@ from sqlalchemy.orm import Session
 from app.admin.config_service import is_feature_enabled
 from app.core.config import settings
 from app.core.limits import get_effective_limits
+from app.documents.object_storage import upload_dir
 from app.documents.parsers import AUDIO_VIDEO_EXTENSIONS, SUPPORTED_EXTENSIONS, VIDEO_EXTENSIONS
 from app.documents.storage import sanitize_filename, save_upload
 from app.models import Document, DocumentFolder, DocumentStatus, User
@@ -94,5 +96,11 @@ async def ingest_upload(
     storage_path = save_upload(current_user.id, document.id, file.filename or "unnamed", content)
     document.storage_path = storage_path
     db.commit()
+
+    # Back up the original file to R2 right now, not just after parsing succeeds: if the
+    # process is interrupted mid-parse (a redeploy, a restart) before this ever runs again,
+    # the source file would otherwise be gone for good on a host with an ephemeral
+    # filesystem, with nothing left to retry from. A no-op unless R2_* is configured.
+    upload_dir(f"{current_user.id}/{document.id}", Path(storage_path).parent)
 
     return document, storage_path, extension

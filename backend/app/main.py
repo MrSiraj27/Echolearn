@@ -27,6 +27,7 @@ from app.study.review_routes import review_cards_router, review_router
 from app.users.routes import router as users_router
 from app.voice.routes import router as voice_router
 from app.workspaces.routes import router as workspaces_router
+from app.documents.background import fail_interrupted_documents
 from app.voice.clone_background import fail_interrupted_jobs
 from app.voice.clone_model import load_clone_model, shutdown_clone_worker
 from app.voice.clone_routes import router as voice_clone_router
@@ -64,6 +65,9 @@ async def lifespan(app: FastAPI):
     # now loads lazily too, trading a slower first /voice/speak call for headroom.
     load_clone_model()  # only logs whether the isolated cloning worker is installed; it starts lazily
     fail_interrupted_jobs()
+    n_docs = fail_interrupted_documents()
+    if n_docs:
+        logger.warning("Marked %d interrupted document-processing job(s) as failed/ready on startup.", n_docs)
     yield
     shutdown_clone_worker()
 
