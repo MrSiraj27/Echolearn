@@ -47,12 +47,7 @@ def signup(payload: SignupRequest, db: Session = Depends(get_db)):
         name=payload.name,
         email=payload.email,
         password_hash=hash_password(payload.password),
-        # Auto-verified: email delivery only works for the Resend account owner's own
-        # address until a custom domain is verified at resend.com/domains (sandbox mode
-        # restriction), so gating login on a link that most users could never receive
-        # would lock everyone else out. Revert to False here once a verified sending
-        # domain is configured, and re-enable the is_verified check in login() below.
-        is_verified=True,
+        is_verified=False,
     )
     db.add(user)
     db.flush()
@@ -130,6 +125,12 @@ def login(payload: LoginRequest, response: Response, db: Session = Depends(get_d
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Your account has been blocked. Contact support if you believe this is an error.",
+        )
+
+    if not user.is_verified:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Please verify your email before logging in. Check your inbox for the verification link.",
         )
 
     access_token = create_access_token(user.id, user.email)
