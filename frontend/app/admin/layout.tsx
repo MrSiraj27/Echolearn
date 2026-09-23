@@ -44,19 +44,35 @@ function AdminShell({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="min-h-screen bg-white dark:bg-neutral-950 flex flex-col">
-      <div className="bg-neutral-900 text-white px-4 py-2 flex items-center justify-center gap-2 text-xs font-medium">
-        <ShieldAlert className="h-3.5 w-3.5" />
-        You are logged in as ADMIN ({admin?.admin_role}) — {admin?.email}
+      <div className="bg-neutral-900 text-white px-4 py-2 flex items-center justify-center lg:justify-center gap-2 text-xs font-medium relative">
+        <ShieldAlert className="h-3.5 w-3.5 shrink-0" />
+        <span className="truncate">
+          You are logged in as ADMIN ({admin?.admin_role}) — {admin?.email}
+        </span>
+        <button
+          onClick={() => {
+            logout();
+            router.push("/admin/login");
+          }}
+          aria-label="Log out"
+          className="lg:hidden absolute right-3 text-white/70 hover:text-white"
+        >
+          <LogOut className="h-4 w-4" />
+        </button>
       </div>
 
-      <div className="flex flex-1 min-h-0">
-        <aside className="w-56 shrink-0 border-r border-neutral-200 dark:border-neutral-800 flex flex-col">
-          <div className="px-4 py-4">
+      {/* Below lg: the sidebar becomes a horizontal, scrollable tab bar above the
+          content instead of a fixed-width column — at phone width, a 224px sidebar left
+          almost no room for the actual page (e.g. the user search box was cut off to a
+          few visible characters). */}
+      <div className="flex flex-col lg:flex-row flex-1 min-h-0">
+        <aside className="w-full lg:w-56 shrink-0 border-b lg:border-b-0 lg:border-r border-neutral-200 dark:border-neutral-800 flex flex-col">
+          <div className="px-4 py-4 hidden lg:block">
             <p className="text-sm font-semibold tracking-tight text-neutral-900 dark:text-neutral-100">
               EchoLearn Admin
             </p>
           </div>
-          <nav className="flex-1 px-3 space-y-1">
+          <nav className="flex lg:flex-col overflow-x-auto lg:overflow-visible flex-1 px-3 py-2 lg:py-0 gap-1 lg:gap-0 lg:space-y-1">
             {NAV_ITEMS.filter((item) => !admin?.admin_role || item.roles.includes(admin.admin_role)).map((item) => {
               const Icon = item.icon;
               const active = pathname?.startsWith(item.href);
@@ -64,7 +80,7 @@ function AdminShell({ children }: { children: React.ReactNode }) {
                 <Link
                   key={item.href}
                   href={item.href}
-                  className={`flex items-center gap-2 text-sm px-2.5 py-2 rounded-lg transition-colors ${
+                  className={`flex items-center gap-2 text-sm px-2.5 py-2 rounded-lg transition-colors shrink-0 whitespace-nowrap ${
                     active
                       ? "bg-neutral-100 dark:bg-neutral-800 text-neutral-900 dark:text-neutral-100 font-medium"
                       : "text-neutral-600 dark:text-neutral-400 hover:bg-neutral-50 dark:hover:bg-neutral-800/60"
@@ -76,7 +92,7 @@ function AdminShell({ children }: { children: React.ReactNode }) {
               );
             })}
           </nav>
-          <div className="px-3 py-3 border-t border-neutral-200 dark:border-neutral-800">
+          <div className="px-3 py-3 border-t border-neutral-200 dark:border-neutral-800 hidden lg:block">
             <button
               onClick={() => {
                 logout();
