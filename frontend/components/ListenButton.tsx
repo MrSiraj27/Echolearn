@@ -297,7 +297,7 @@ export default function ListenButton({ text, messageId }: { text: string; messag
         ) : (
           <Volume2 className="h-3.5 w-3.5" />
         )}
-        {isCloning ? "Cloning your voice..." : isLoading ? "Loading..." : isPlaying ? "Stop" : "Listen"}
+        {isCloning ? "Generating..." : isLoading ? "Loading..." : isPlaying ? "Stop" : "Listen"}
       </button>
 
       {hasVoiceSample && (
@@ -317,7 +317,7 @@ export default function ListenButton({ text, messageId }: { text: string; messag
       )}
 
       {isCloning && (
-        <span className="text-[11px] text-neutral-400">this can take up to a minute</span>
+        <span className="text-[11px] text-neutral-400">speaking this in your voice…</span>
       )}
       {isActive && state === "limited" && limitMessage && (
         <span className="text-xs text-red-600 dark:text-red-400">{limitMessage}</span>

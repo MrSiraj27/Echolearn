@@ -17,7 +17,13 @@ from app.core.usage import enforce_quota
 from app.documents.storage import sanitize_filename
 from app.models import Chat, Message, User, VoiceCloneJob, VoiceCloneJobStatus
 from app.voice.clone_background import process_clone_job, sample_path
-from app.voice.clone_model import CloneUnavailableError, prepare_worker, worker_setup_problem
+from app.voice.clone_model import (
+    CloneFailedError,
+    CloneUnavailableError,
+    create_fish_voice_model,
+    prepare_worker,
+    worker_setup_problem,
+)
 from app.voice.clone_schemas import (
     TEXT_HARD_CAP,
     CloneRequestBody,
@@ -82,8 +88,20 @@ async def upload_sample(
     sample_path(current_user.id).write_bytes(content)
 
     current_user.cloned_voice_sample_hash = hashlib.sha256(content).hexdigest()
-    current_user.fish_voice_model_id = None  # sample changed — recreate the Fish model lazily on next use
+    current_user.fish_voice_model_id = None  # sample changed — clear the old model either way
     db.commit()
+
+    # Clone the voice right now, once, so every later "Listen" click is just a fast TTS
+    # call — not silently re-cloning per message. Best-effort: if Fish Audio has a
+    # hiccup here, clone_background.py still creates the model lazily on first use.
+    try:
+        current_user.fish_voice_model_id = create_fish_voice_model(content)
+        db.commit()
+    except (CloneUnavailableError, CloneFailedError) as exc:
+        logger.warning(
+            "Could not eagerly create the Fish Audio voice model for user %s (%s); will retry on first use.",
+            current_user.id, exc,
+        )
 
     logger.info("Voice sample uploaded for user %s (file %s, %.1fs)", current_user.id, safe_name, duration)
     return {"has_sample": True}
