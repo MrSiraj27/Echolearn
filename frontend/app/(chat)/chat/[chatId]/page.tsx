@@ -280,7 +280,7 @@ export default function ChatPage({ params }: { params: Promise<{ chatId: string 
           </div>
         </div>
 
-        <div className="border-t border-neutral-200 dark:border-neutral-800 px-6 py-4">
+        <div className="border-t border-neutral-200 dark:border-neutral-800 px-3 sm:px-6 py-3 sm:py-4">
           {sendError && <p className="max-w-2xl mx-auto text-xs text-red-600 dark:text-red-400 mb-2">{sendError}</p>}
 
           {showDiagramInput && (
@@ -377,14 +377,14 @@ export default function ChatPage({ params }: { params: Promise<{ chatId: string 
             </div>
           )}
 
-          <div className="max-w-2xl mx-auto flex items-end gap-2">
+          <div className="max-w-2xl mx-auto flex items-end gap-1.5 sm:gap-2">
             {chatDocumentIds.length > 0 && (
               <button
                 onClick={() => setShowDiagramInput((v) => !v)}
                 disabled={isStreaming}
                 aria-label="Generate diagram"
                 title="Generate a diagram from this document"
-                className={`shrink-0 h-11 w-11 rounded-xl border flex items-center justify-center transition-colors disabled:opacity-40 ${
+                className={`shrink-0 h-10 w-10 sm:h-11 sm:w-11 rounded-xl border flex items-center justify-center transition-colors disabled:opacity-40 ${
                   showDiagramInput
                     ? "bg-neutral-100 dark:bg-neutral-800 border-neutral-300 dark:border-neutral-600 text-neutral-900 dark:text-neutral-100"
                     : "border-neutral-300 dark:border-neutral-700 text-neutral-500 dark:text-neutral-400 hover:bg-neutral-50 dark:hover:bg-neutral-800"
@@ -421,15 +421,15 @@ export default function ChatPage({ params }: { params: Promise<{ chatId: string 
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={handleKeyDown}
-              placeholder="Ask a question..."
+              placeholder="Ask a question"
               rows={1}
-              className="flex-1 min-w-0 resize-none overflow-y-auto rounded-xl border border-neutral-300 dark:border-neutral-700 bg-transparent px-3.5 py-2.5 text-sm text-neutral-900 dark:text-neutral-100 placeholder:text-neutral-400 dark:placeholder:text-neutral-500 focus:outline-none focus:ring-1 focus:ring-neutral-900 dark:focus:ring-neutral-100"
-              style={{ minHeight: "44px", maxHeight: "160px" }}
+              className="flex-1 min-w-0 resize-none overflow-y-auto rounded-xl border border-neutral-300 dark:border-neutral-700 bg-transparent px-2.5 sm:px-3.5 py-2.5 text-sm text-neutral-900 dark:text-neutral-100 placeholder:text-neutral-400 dark:placeholder:text-neutral-500 focus:outline-none focus:ring-1 focus:ring-neutral-900 dark:focus:ring-neutral-100 min-h-[40px] sm:min-h-[44px]"
+              style={{ maxHeight: "160px" }}
             />
             <button
               onClick={() => handleSend()}
               disabled={isStreaming || !input.trim()}
-              className="shrink-0 h-11 px-4 rounded-xl bg-neutral-900 dark:bg-neutral-100 text-white dark:text-neutral-900 text-sm font-medium disabled:opacity-40 hover:bg-neutral-800 dark:hover:bg-white transition-colors flex items-center justify-center"
+              className="shrink-0 h-10 sm:h-11 px-3 sm:px-4 rounded-xl bg-neutral-900 dark:bg-neutral-100 text-white dark:text-neutral-900 text-sm font-medium disabled:opacity-40 hover:bg-neutral-800 dark:hover:bg-white transition-colors flex items-center justify-center"
             >
               {isStreaming ? (
                 <span className="h-3.5 w-3.5 rounded-full border-2 border-white/40 dark:border-neutral-900/40 border-t-white dark:border-t-neutral-900 animate-spin" />

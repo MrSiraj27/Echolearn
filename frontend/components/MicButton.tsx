@@ -40,7 +40,7 @@ export default function MicButton({
         onClick={handleClick}
         disabled={disabled}
         aria-label={isListening ? "Stop voice input" : "Ask by voice"}
-        className={`h-11 w-11 rounded-xl border flex items-center justify-center transition-colors disabled:opacity-40 ${
+        className={`h-10 w-10 sm:h-11 sm:w-11 rounded-xl border flex items-center justify-center transition-colors disabled:opacity-40 ${
           isListening
             ? "bg-red-50 dark:bg-red-950/40 border-red-200 dark:border-red-900 text-red-600 dark:text-red-400"
             : "border-neutral-300 dark:border-neutral-700 text-neutral-500 dark:text-neutral-400 hover:bg-neutral-50 dark:hover:bg-neutral-800"
