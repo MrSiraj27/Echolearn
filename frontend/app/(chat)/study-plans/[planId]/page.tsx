@@ -172,11 +172,10 @@ export default function StudyPlanDetailPage({ params }: { params: Promise<{ plan
                     >
                       <button
                         onClick={() => router.push(`/study-plans/${planId}/sessions/${s.id}`)}
-                        className="text-left min-w-0 flex-1"
+                        className="text-left min-w-0 flex-1 flex items-baseline gap-1"
                       >
-                        <span className="font-medium capitalize">{s.session_type}</span>
-                        {" — "}
-                        <span className="truncate">{s.topic_title}</span>
+                        <span className="font-medium capitalize shrink-0">{s.session_type}</span>
+                        <span className="truncate min-w-0">— {s.topic_title}</span>
                       </button>
                       {s.status === "pending" ? (
                         <div className="flex items-center gap-1 shrink-0">
