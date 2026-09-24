@@ -40,7 +40,21 @@ REFRESH_COOKIE_NAME = "refresh_token"
 def signup(payload: SignupRequest, db: Session = Depends(get_db)):
     existing = db.query(User).filter(User.email == payload.email).first()
     if existing:
-        # Don't leak whether the email already exists — return the same generic message.
+        # Don't leak whether the email already exists — always return the same generic
+        # message either way. But if it's a never-verified account (e.g. the first
+        # verification email was lost, or signup was retried before it arrived), send a
+        # fresh link instead of silently doing nothing — a bare no-op here looks from the
+        # outside identical to email delivery being broken.
+        if not existing.is_verified:
+            token_value = generate_token()
+            db.add(AuthToken(
+                user_id=existing.id,
+                token=token_value,
+                type=AuthTokenType.verify_email,
+                expires_at=datetime.now(timezone.utc) + timedelta(hours=24),
+            ))
+            db.commit()
+            send_verification_email(existing.email, token_value)
         return SignupResponse(message=GENERIC_SIGNUP_MESSAGE)
 
     user = User(
