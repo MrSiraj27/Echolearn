@@ -91,26 +91,30 @@ def process_clone_job(job_id: uuid.UUID, text: str) -> None:
         db.commit()
 
         try:
-            ref_file = sample_path(job.user_id)
-            if not ref_file.is_file():
-                _fail(db, job, "Your voice sample is missing. Please upload it again in Settings.")
-                return
-            ref_bytes = ref_file.read_bytes()
-            if hashlib.sha256(ref_bytes).hexdigest() != job.reference_audio_hash:
-                _fail(db, job, "Your voice sample changed while this was queued. Please try again.")
-                return
-
             user = db.query(User).filter(User.id == job.user_id).first()
             if not user:
                 _fail(db, job, "Your account could not be found.")
                 return
+            if user.cloned_voice_sample_hash != job.reference_audio_hash:
+                _fail(db, job, "Your voice sample changed while this was queued. Please try again.")
+                return
 
             started = time.perf_counter()
-            # Reuse the cached Fish Audio voice model for this sample if one already
-            # exists (cleared to None whenever the sample is replaced/deleted — see
-            # clone_routes.py) — avoids re-uploading the reference clip on every message.
+            # Reuse the cached Fish Audio voice model for this sample if one already exists
+            # (cleared to None whenever the sample is replaced/deleted — see clone_routes.py).
+            # Fish Audio keeps the model on its own servers, so this doesn't depend on the
+            # local reference WAV still being on disk — Render's filesystem is ephemeral and
+            # wipes it on every restart/idle-spindown, well before the Fish model expires.
             reference_id = user.fish_voice_model_id
             if not reference_id:
+                ref_file = sample_path(job.user_id)
+                if not ref_file.is_file():
+                    _fail(db, job, "Your voice sample is missing. Please upload it again in Settings.")
+                    return
+                ref_bytes = ref_file.read_bytes()
+                if hashlib.sha256(ref_bytes).hexdigest() != job.reference_audio_hash:
+                    _fail(db, job, "Your voice sample changed while this was queued. Please try again.")
+                    return
                 reference_id = create_fish_voice_model(ref_bytes)
                 user.fish_voice_model_id = reference_id
                 db.commit()
