@@ -80,3 +80,16 @@ class Settings(BaseSettings):
 
 
 settings = Settings()
+
+
+def resolve_ffmpeg_path() -> str:
+    """FFMPEG_PATH lets an operator point at a system ffmpeg explicitly; otherwise falls
+    back to imageio-ffmpeg's bundled static binary. Needed because Render's native Python
+    runtime (render.yaml's `runtime: python`) has no apt-get/root access to install ffmpeg
+    system-wide — audio/video parsing (transcription, video-URL ingest) would otherwise
+    fail outright in production with no local ffmpeg on PATH."""
+    if settings.FFMPEG_PATH:
+        return settings.FFMPEG_PATH
+    import imageio_ffmpeg
+
+    return imageio_ffmpeg.get_ffmpeg_exe()

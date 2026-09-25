@@ -2,7 +2,7 @@ import logging
 import os
 import subprocess
 
-from app.core.config import settings
+from app.core.config import resolve_ffmpeg_path, settings
 from app.documents.parsers.types import ParsedPage
 
 logger = logging.getLogger(__name__)
@@ -44,7 +44,7 @@ def extract_audio_from_video(video_path: str) -> str:
     """Extract a 16kHz mono WAV audio track from a video file via ffmpeg, returning the
     path to the extracted file (caller is responsible for cleaning it up)."""
     wav_path = f"{video_path}.extracted.wav"
-    ffmpeg_bin = settings.FFMPEG_PATH or "ffmpeg"
+    ffmpeg_bin = resolve_ffmpeg_path()
     cmd = [ffmpeg_bin, "-y", "-i", video_path, "-vn", "-acodec", "pcm_s16le", "-ar", "16000", "-ac", "1", wav_path]
 
     result = subprocess.run(cmd, capture_output=True)
