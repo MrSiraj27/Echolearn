@@ -1,7 +1,7 @@
 import re
 from pathlib import Path
 
-from app.core.config import resolve_ffmpeg_path, settings
+from app.core.config import resolve_ffmpeg_path, resolve_youtube_cookies_path, settings
 
 
 def _safe_title(title: str) -> str:
@@ -30,6 +30,9 @@ def download_audio_from_url(url: str, dest_dir: Path) -> tuple[str, str]:
     ydl_opts["ffmpeg_location"] = resolve_ffmpeg_path()
     if settings.YTDLP_CACHE_DIR:
         ydl_opts["cachedir"] = settings.YTDLP_CACHE_DIR
+    cookies_path = resolve_youtube_cookies_path()
+    if cookies_path:
+        ydl_opts["cookiefile"] = cookies_path
 
     with yt_dlp.YoutubeDL(ydl_opts) as ydl:
         info = ydl.extract_info(url, download=True)
