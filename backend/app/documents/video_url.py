@@ -1,7 +1,7 @@
 import re
 from pathlib import Path
 
-from app.core.config import settings
+from app.core.config import resolve_ffmpeg_path, settings
 
 
 def _safe_title(title: str) -> str:
@@ -27,8 +27,7 @@ def download_audio_from_url(url: str, dest_dir: Path) -> tuple[str, str]:
             {"key": "FFmpegExtractAudio", "preferredcodec": "wav", "preferredquality": "192"}
         ],
     }
-    if settings.FFMPEG_PATH:
-        ydl_opts["ffmpeg_location"] = settings.FFMPEG_PATH
+    ydl_opts["ffmpeg_location"] = resolve_ffmpeg_path()
     if settings.YTDLP_CACHE_DIR:
         ydl_opts["cachedir"] = settings.YTDLP_CACHE_DIR
 

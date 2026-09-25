@@ -165,3 +165,4 @@ yt-dlp==2026.8.19
 zstandard==0.25.0
 qdrant-client==1.11.3
 boto3==1.35.99
+imageio-ffmpeg==0.5.1
