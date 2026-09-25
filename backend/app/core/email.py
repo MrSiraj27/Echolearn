@@ -3,6 +3,8 @@ import smtplib
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 
+import httpx
+
 from app.core.config import settings
 
 logger = logging.getLogger(__name__)
@@ -87,12 +89,35 @@ def _send_via_resend(to_email: str, subject: str, html: str) -> None:
     resend.Emails.send({"from": FROM_ADDRESS, "to": [to_email], "subject": subject, "html": html})
 
 
+def _send_via_brevo_api(to_email: str, subject: str, html: str) -> None:
+    # HTTPS (port 443) — unlike SMTP (port 587/465/25), this isn't blocked by hosts like
+    # Render that restrict outbound SMTP ports as an anti-spam measure. Uses the same
+    # Brevo account as before, but an API key (Brevo -> SMTP & API -> API Keys), not the
+    # SMTP username/password.
+    sender_email = settings.SMTP_FROM_EMAIL or settings.SMTP_USERNAME
+    response = httpx.post(
+        "https://api.brevo.com/v3/smtp/email",
+        headers={"api-key": settings.BREVO_API_KEY, "Content-Type": "application/json", "Accept": "application/json"},
+        json={
+            "sender": {"name": "EchoLearn", "email": sender_email},
+            "to": [{"email": to_email}],
+            "subject": subject,
+            "htmlContent": html,
+        },
+        timeout=15,
+    )
+    response.raise_for_status()
+
+
 def _send(to_email: str, subject: str, html: str) -> None:
-    # SMTP (e.g. SMTP2GO) takes priority: unlike Resend's sandbox, a verified single
-    # sender email lets it deliver to any real recipient, not just the account owner.
+    # Brevo's HTTP API takes priority: SMTP (port 587) is unreliable on hosts that
+    # restrict outbound SMTP ports (see BREVO_API_KEY's docstring in config.py).
     smtp_configured = all([settings.SMTP_HOST, settings.SMTP_USERNAME, settings.SMTP_PASSWORD, settings.SMTP_FROM_EMAIL])
     try:
-        if smtp_configured:
+        if settings.BREVO_API_KEY:
+            _send_via_brevo_api(to_email, subject, html)
+            logger.info("Email sent via Brevo API to %s: %s", to_email, subject)
+        elif smtp_configured:
             _send_via_smtp(to_email, subject, html)
             logger.info("Email sent via SMTP (%s) to %s: %s", settings.SMTP_HOST, to_email, subject)
         elif settings.RESEND_API_KEY:
