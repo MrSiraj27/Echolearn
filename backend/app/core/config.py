@@ -1,3 +1,5 @@
+from pathlib import Path
+
 from pydantic import field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -60,6 +62,15 @@ class Settings(BaseSettings):
     WHISPER_MODEL_SIZE: str = "base"
     FFMPEG_PATH: str = ""
     YTDLP_CACHE_DIR: str = "./.ytdlp_cache"
+    # YouTube increasingly blocks/challenges ("Sign in to confirm you're not a bot")
+    # requests from data-center IPs (Render's included) much more aggressively than home
+    # connections. Passing a real account's session cookies makes requests look like a
+    # signed-in user's browser, which usually avoids the challenge. Paste the full
+    # contents of a Netscape-format cookies.txt file (exported via a browser extension
+    # like "Get cookies.txt LOCALLY") as this single env var — Render env vars are
+    # single values, not file uploads, so the content is written to a temp file at
+    # request time instead of being read from a path on disk. Leave blank to disable.
+    YOUTUBE_COOKIES: str = ""
 
     JWT_ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 15
@@ -80,6 +91,25 @@ class Settings(BaseSettings):
 
 
 settings = Settings()
+
+
+_cookies_file_path: str | None = None
+
+
+def resolve_youtube_cookies_path() -> str | None:
+    """Writes YOUTUBE_COOKIES out to a stable temp file (yt-dlp needs a file path, not
+    the content directly) and returns that path, or None if unset. Cached after the
+    first call since the content doesn't change without a redeploy."""
+    global _cookies_file_path
+    if not settings.YOUTUBE_COOKIES:
+        return None
+    if _cookies_file_path is None:
+        import tempfile
+
+        path = Path(tempfile.gettempdir()) / "echolearn_youtube_cookies.txt"
+        path.write_text(settings.YOUTUBE_COOKIES, encoding="utf-8")
+        _cookies_file_path = str(path)
+    return _cookies_file_path
 
 
 def resolve_ffmpeg_path() -> str:
