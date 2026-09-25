@@ -18,6 +18,13 @@ class Settings(BaseSettings):
     SMTP_USERNAME: str = ""
     SMTP_PASSWORD: str = ""
     SMTP_FROM_EMAIL: str = ""
+    # Brevo's HTTP API (used instead of SMTP when set): most free/starter hosting tiers
+    # (including Render's) block or heavily throttle outbound SMTP ports (25/465/587) as
+    # an anti-spam measure, which SMTP delivery hit here — confirmed by every send taking
+    # ~18s (matching smtplib's connect timeout) regardless of provider or credentials.
+    # The HTTP API goes over plain HTTPS (port 443), which is never blocked. Get a key
+    # from Brevo -> SMTP & API -> API Keys (not the SMTP key used before).
+    BREVO_API_KEY: str = ""
     FRONTEND_URL: str = "http://localhost:3000"
     STORAGE_PATH: str = "./storage"
     CHROMA_PATH: str = "./chroma_data"
