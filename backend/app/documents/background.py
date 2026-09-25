@@ -1,5 +1,6 @@
 import json
 import logging
+import threading
 import uuid
 from dataclasses import asdict
 from pathlib import Path
@@ -19,12 +20,26 @@ from app.rag.vectorstore import add_chunks
 
 logger = logging.getLogger(__name__)
 
+# Render's free tier has only 512MB RAM. Parsing/embedding (and Whisper transcription for
+# audio/video) each load models and hold buffers that can spike well past what's safe to
+# run twice at once — two users uploading around the same time could run their parse jobs
+# concurrently and OOM-kill the whole process (every other in-flight document then gets
+# stuck "processing" until fail_interrupted_documents() marks it failed on the next
+# restart). Serializing to one parse job at a time trades a bit of latency for the second
+# uploader for not crashing the server under both of them.
+_parse_semaphore = threading.Semaphore(1)
+
 
 def parsed_text_path(document_dir: Path) -> Path:
     return document_dir / "parsed.json"
 
 
 def run_parsing_task(document_id: uuid.UUID, file_path: str, extension: str) -> None:
+    with _parse_semaphore:
+        _run_parsing_task(document_id, file_path, extension)
+
+
+def _run_parsing_task(document_id: uuid.UUID, file_path: str, extension: str) -> None:
     db: Session = SessionLocal()
     try:
         document = db.query(Document).filter(Document.id == document_id).first()
@@ -112,7 +127,13 @@ def run_parsing_task(document_id: uuid.UUID, file_path: str, extension: str) -> 
 def run_url_ingest_task(document_id: uuid.UUID, url: str) -> None:
     """Download a video/audio URL (YouTube or any yt-dlp-supported site), extract its
     audio, then hand off to the normal parsing pipeline exactly as if it had been an
-    uploaded audio file."""
+    uploaded audio file. Holds the same parse semaphore across download+parse (not just
+    the parse half) — yt-dlp/ffmpeg download is itself memory/CPU heavy."""
+    with _parse_semaphore:
+        _run_url_ingest_task(document_id, url)
+
+
+def _run_url_ingest_task(document_id: uuid.UUID, url: str) -> None:
     db: Session = SessionLocal()
     try:
         document = db.query(Document).filter(Document.id == document_id).first()
@@ -143,7 +164,7 @@ def run_url_ingest_task(document_id: uuid.UUID, url: str) -> None:
     finally:
         db.close()
 
-    run_parsing_task(document_id, file_path, "wav")
+    _run_parsing_task(document_id, file_path, "wav")
 
 
 def fail_interrupted_documents() -> int:
