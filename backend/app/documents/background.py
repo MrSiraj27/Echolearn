@@ -29,14 +29,38 @@ logger = logging.getLogger(__name__)
 # uploader for not crashing the server under both of them.
 _parse_semaphore = threading.Semaphore(1)
 
+# A job that hangs (rather than cleanly failing) would otherwise hold the semaphore
+# forever, silently queuing every later upload behind it indefinitely — including ones
+# that would parse almost instantly on their own (e.g. a .pptx queued behind a stuck
+# image OCR job). Bounding the wait means a stuck job can only ever block others for a
+# few minutes, not the rest of the process's lifetime.
+MAX_QUEUE_WAIT_SECONDS = 300
+
 
 def parsed_text_path(document_dir: Path) -> Path:
     return document_dir / "parsed.json"
 
 
+def _mark_failed_busy(document_id: uuid.UUID) -> None:
+    db: Session = SessionLocal()
+    try:
+        document = db.query(Document).filter(Document.id == document_id).first()
+        if document:
+            document.status = DocumentStatus.failed
+            db.commit()
+    finally:
+        db.close()
+    logger.error("Document %s timed out waiting for a busy server to free up", document_id)
+
+
 def run_parsing_task(document_id: uuid.UUID, file_path: str, extension: str) -> None:
-    with _parse_semaphore:
+    if not _parse_semaphore.acquire(timeout=MAX_QUEUE_WAIT_SECONDS):
+        _mark_failed_busy(document_id)
+        return
+    try:
         _run_parsing_task(document_id, file_path, extension)
+    finally:
+        _parse_semaphore.release()
 
 
 def _run_parsing_task(document_id: uuid.UUID, file_path: str, extension: str) -> None:
@@ -129,8 +153,13 @@ def run_url_ingest_task(document_id: uuid.UUID, url: str) -> None:
     audio, then hand off to the normal parsing pipeline exactly as if it had been an
     uploaded audio file. Holds the same parse semaphore across download+parse (not just
     the parse half) — yt-dlp/ffmpeg download is itself memory/CPU heavy."""
-    with _parse_semaphore:
+    if not _parse_semaphore.acquire(timeout=MAX_QUEUE_WAIT_SECONDS):
+        _mark_failed_busy(document_id)
+        return
+    try:
         _run_url_ingest_task(document_id, url)
+    finally:
+        _parse_semaphore.release()
 
 
 def _run_url_ingest_task(document_id: uuid.UUID, url: str) -> None:
