@@ -19,7 +19,14 @@ def _load_engine():
 
     from rapidocr_onnxruntime import RapidOCR
 
-    _engine = RapidOCR()
+    # onnxruntime defaults to auto-detecting CPU count for its thread pool, which on a
+    # throttled container (Render's free tier is quota-limited to 0.1 CPU but still
+    # reports the host's full core count via os.cpu_count()) causes severe thread
+    # contention — far more threads spawned than the container can actually run
+    # concurrently, making inference dramatically slower than a single thread would be
+    # (observed as uploads never finishing in practice). Pinning to 1 thread each avoids
+    # this well-known container/CPU-quota mismatch.
+    _engine = RapidOCR(intra_op_num_threads=1, inter_op_num_threads=1)
     return _engine
 
 
