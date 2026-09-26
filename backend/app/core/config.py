@@ -30,7 +30,6 @@ class Settings(BaseSettings):
     FRONTEND_URL: str = "http://localhost:3000"
     STORAGE_PATH: str = "./storage"
     CHROMA_PATH: str = "./chroma_data"
-    TESSERACT_CMD: str = ""
     MAX_UPLOAD_SIZE_MB: int = 50
     QDRANT_URL: str = ""
     QDRANT_API_KEY: str = ""
