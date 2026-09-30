@@ -16,7 +16,7 @@ from app.core.security import get_current_user
 from app.core.usage import enforce_quota
 from app.documents.storage import sanitize_filename
 from app.models import Chat, Message, User, VoiceCloneJob, VoiceCloneJobStatus
-from app.voice.clone_background import process_clone_job, sample_path
+from app.voice.clone_background import ensure_clone_audio_local, process_clone_job, sample_path
 from app.voice.clone_model import (
     CloneFailedError,
     CloneUnavailableError,
@@ -231,7 +231,7 @@ def enqueue_clone(db: Session, current_user: User, message_id: str, schedule) ->
         .order_by(VoiceCloneJob.completed_at.desc())
         .first()
     )
-    if existing_done and existing_done.output_audio_path and Path(existing_done.output_audio_path).exists():
+    if existing_done and ensure_clone_audio_local(existing_done):
         return CloneRequestResponse(
             status="done", job_id=str(existing_done.id), audio_url=f"/voice/clone-audio/{existing_done.id}", truncated=truncated
         )
@@ -300,10 +300,10 @@ def clone_audio(
     job = _get_owned_job(job_id, current_user, db)
     if job.status != VoiceCloneJobStatus.done or not job.output_audio_path:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Audio not ready.")
-    path = Path(job.output_audio_path)
-    if not path.exists():
+    if not ensure_clone_audio_local(job):
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Audio file missing.")
-    return Response(content=path.read_bytes(), media_type="audio/wav", headers={"Cache-Control": "private, max-age=3600"})
+    path = Path(job.output_audio_path)
+    return Response(content=path.read_bytes(), media_type="audio/wav", headers={"Cache-Control": "private, max-age=86400"})
 
 
 @router.get("/clone-availability")

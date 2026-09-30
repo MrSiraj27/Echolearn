@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, Mic, Square, Trash2, Upload, Loader2, Check } from "lucide-react";
 import Sidebar from "@/components/Sidebar";
+import { clearClonedAudioCache } from "@/components/ListenButton";
 import { api, ApiError } from "@/lib/api";
 import { useSpeech } from "@/lib/speech-context";
 import { ReviewSettingsResponse } from "@/lib/types";
@@ -190,6 +191,7 @@ export default function SettingsPage() {
         return URL.createObjectURL(wav);
       });
       setHasSample(true);
+      clearClonedAudioCache();
       loadUsage();
       refreshVoiceSample();
     } catch (err) {
@@ -220,6 +222,7 @@ export default function SettingsPage() {
     try {
       await api.delete("/voice/sample", { auth: true });
       setHasSample(false);
+      clearClonedAudioCache();
       setPreviewUrl((old) => {
         if (old) URL.revokeObjectURL(old);
         return null;

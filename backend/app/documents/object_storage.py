@@ -73,6 +73,29 @@ def download_dir(prefix: str, local_dir: Path) -> bool:
         return False
 
 
+def upload_file(key: str, local_path: Path) -> None:
+    """Best-effort single-file backup. Never raises."""
+    if not enabled():
+        return
+    try:
+        _get_client().upload_file(str(local_path), settings.R2_BUCKET, key)
+    except Exception:
+        logger.exception("R2 upload failed for %s", key)
+
+
+def download_file(key: str, local_path: Path) -> bool:
+    """Best-effort single-file restore. Returns True if the file now exists locally."""
+    if not enabled():
+        return False
+    try:
+        local_path.parent.mkdir(parents=True, exist_ok=True)
+        _get_client().download_file(settings.R2_BUCKET, key, str(local_path))
+        return local_path.is_file()
+    except Exception:
+        logger.info("R2 restore unavailable for %s", key)
+        return False
+
+
 def delete_prefix(prefix: str) -> None:
     """Best-effort: delete every object under `prefix` (mirrors delete_document_files)."""
     if not enabled():

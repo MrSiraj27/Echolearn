@@ -23,6 +23,7 @@ from sqlalchemy.orm import Session
 
 from app.core.config import settings
 from app.core.database import SessionLocal
+from app.documents.object_storage import download_file, upload_file
 from app.models import User, UsageEvent, VoiceCloneJob, VoiceCloneJobStatus
 from app.voice.clone_model import (
     CloneFailedError,
@@ -44,6 +45,22 @@ def output_path(user_id: uuid.UUID, job_id: uuid.UUID) -> Path:
     path = Path(settings.STORAGE_PATH) / str(user_id) / "clones"
     path.mkdir(parents=True, exist_ok=True)
     return path / f"{job_id}.wav"
+
+
+def _clone_r2_key(user_id: uuid.UUID, job_id: uuid.UUID) -> str:
+    return f"{user_id}/clones/{job_id}.wav"
+
+
+def ensure_clone_audio_local(job: VoiceCloneJob) -> bool:
+    """True if this finished job's audio is on local disk, restoring it from R2 first if
+    the host disk was wiped (Render's free tier loses local files on every restart/idle
+    spin-down, which otherwise silently turned every replay into a fresh, paid clone)."""
+    if not job.output_audio_path:
+        return False
+    path = Path(job.output_audio_path)
+    if path.is_file():
+        return True
+    return download_file(_clone_r2_key(job.user_id, job.id), path)
 
 
 def validate_wav_output(data: bytes) -> tuple[int, int, float]:
@@ -130,6 +147,7 @@ def process_clone_job(job_id: uuid.UUID, text: str) -> None:
 
             out = output_path(job.user_id, job.id)
             out.write_bytes(audio_bytes)
+            upload_file(_clone_r2_key(job.user_id, job.id), out)
 
             job.status = VoiceCloneJobStatus.done
             job.output_audio_path = str(out)
