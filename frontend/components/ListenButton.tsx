@@ -18,6 +18,19 @@ interface CloneStatusResponse {
   error_message: string | null;
 }
 
+// Audio already fetched this session, keyed by message + voice, so replaying the same
+// answer plays instantly instead of repeating the clone request and re-downloading the
+// WAV. Blobs (not object URLs) are cached, since stopPlayback() revokes its URL.
+const audioCache = new Map<string, Blob>();
+const cloneKey = (messageId: string) => `clone:${messageId}`;
+const speakKey = (messageId: string, voiceId: string | null) => `speak:${voiceId ?? "default"}:${messageId}`;
+
+export function clearClonedAudioCache() {
+  for (const key of Array.from(audioCache.keys())) {
+    if (key.startsWith("clone:")) audioCache.delete(key);
+  }
+}
+
 const CLONE_POLL_INTERVAL_MS = 3500;
 const CLONE_POLL_MAX_MS = 5 * 60 * 1000;
 const CLONE_POLL_MAX_ERRORS = 3;
@@ -112,16 +125,7 @@ export default function ListenButton({ text, messageId }: { text: string; messag
     window.speechSynthesis.speak(utterance);
   }
 
-  async function playAudioFromUrl(path: string) {
-    const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
-    const { getAccessToken } = await import("@/lib/api");
-    const token = getAccessToken();
-    const res = await fetch(`${apiUrl}${path}`, {
-      headers: token ? { Authorization: `Bearer ${token}` } : {},
-      credentials: "include",
-    });
-    if (!res.ok) throw new ApiError(res.status, "Couldn't load cloned audio.");
-    const blob = await res.blob();
+  async function playBlob(blob: Blob) {
     const url = URL.createObjectURL(blob);
     objectUrlRef.current = url;
     const audio = new Audio(url);
@@ -133,6 +137,20 @@ export default function ListenButton({ text, messageId }: { text: string; messag
     };
     setState("playing");
     await audio.play();
+  }
+
+  async function playAudioFromUrl(path: string) {
+    const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+    const { getAccessToken } = await import("@/lib/api");
+    const token = getAccessToken();
+    const res = await fetch(`${apiUrl}${path}`, {
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+      credentials: "include",
+    });
+    if (!res.ok) throw new ApiError(res.status, "Couldn't load cloned audio.");
+    const blob = await res.blob();
+    audioCache.set(cloneKey(messageId), blob);
+    await playBlob(blob);
   }
 
   function showError(message: string) {
@@ -179,8 +197,13 @@ export default function ListenButton({ text, messageId }: { text: string; messag
 
   async function handleMyVoiceClick() {
     setSpeakingId(messageId);
-    setState("loading");
     setLimitMessage(null);
+    const cached = audioCache.get(cloneKey(messageId));
+    if (cached) {
+      await playBlob(cached);
+      return;
+    }
+    setState("loading");
     try {
       const result = await api.post<CloneRequestResponse>("/voice/clone-request", { message_id: messageId }, { auth: true });
       if (result.status === "done" && result.audio_url) {
@@ -224,8 +247,14 @@ export default function ListenButton({ text, messageId }: { text: string; messag
     }
 
     setSpeakingId(messageId);
-    setState("loading");
     setLimitMessage(null);
+
+    const cached = audioCache.get(speakKey(messageId, voiceId));
+    if (cached) {
+      await playBlob(cached);
+      return;
+    }
+    setState("loading");
 
     try {
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
@@ -255,21 +284,8 @@ export default function ListenButton({ text, messageId }: { text: string; messag
       if (!res.ok) throw new ApiError(res.status, "Voice synthesis failed.");
 
       const blob = await res.blob();
-      const url = URL.createObjectURL(blob);
-      objectUrlRef.current = url;
-
-      const audio = new Audio(url);
-      audioRef.current = audio;
-      audio.onended = () => {
-        setSpeakingId(null);
-      };
-      audio.onerror = () => {
-        setState("unavailable");
-        setSpeakingId(null);
-      };
-
-      setState("playing");
-      await audio.play();
+      audioCache.set(speakKey(messageId, voiceId), blob);
+      await playBlob(blob);
     } catch {
       // Backend unreachable or synthesis failed — fall back to browser TTS so the
       // button still does something rather than silently failing.
