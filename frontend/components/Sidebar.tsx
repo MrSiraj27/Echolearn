@@ -347,11 +347,13 @@ export default function Sidebar({ activeChatId }: { activeChatId?: string }) {
   return (
     <>
       {/* Mobile menu trigger — hidden once the drawer is open, and hidden entirely at lg+
-          where the sidebar is always visible inline. */}
+          where the sidebar is always visible inline. z-50 keeps it above the drawer (z-40)
+          and backdrop (z-30) while they're still animating out after a close; below them,
+          a quick re-tap landed on those instead and needed several tries. */}
       {!mobileOpen && (
         <button
           onClick={() => setMobileOpen(true)}
-          className="lg:hidden fixed top-3 left-3 z-30 h-9 w-9 flex items-center justify-center rounded-lg bg-white dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 text-neutral-600 dark:text-neutral-300 shadow-sm"
+          className="lg:hidden fixed top-3 left-3 z-50 h-9 w-9 flex items-center justify-center rounded-lg bg-white dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 text-neutral-600 dark:text-neutral-300 shadow-sm"
           aria-label="Open menu"
         >
           <Menu className="h-4 w-4" />
@@ -366,6 +368,7 @@ export default function Sidebar({ activeChatId }: { activeChatId?: string }) {
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             onClick={() => setMobileOpen(false)}
+            style={{ pointerEvents: mobileOpen ? "auto" : "none" }}
             className="lg:hidden fixed inset-0 bg-black/40 z-30"
           />
         )}
