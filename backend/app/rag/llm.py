@@ -14,7 +14,7 @@ _groq_client: Groq | None = None
 def get_groq_client() -> Groq:
     global _groq_client
     if _groq_client is None:
-        _groq_client = Groq(api_key=settings.GROQ_API_KEY)
+        _groq_client = Groq(api_key=settings.GROQ_API_KEY, timeout=45.0, max_retries=1)
     return _groq_client
 
 
@@ -36,7 +36,8 @@ def _gemini_chat(messages: list[dict], model: str = "gemini-2.5-flash") -> str:
         prompt_parts.append(f"[{role.upper()}]\n{m['content']}")
     prompt = "\n\n".join(prompt_parts)
 
-    response = gemini_model.generate_content(prompt)
+    # Without a timeout a hung call blocks the caller (e.g. document processing) forever.
+    response = gemini_model.generate_content(prompt, request_options={"timeout": 60})
     return response.text or ""
 
 

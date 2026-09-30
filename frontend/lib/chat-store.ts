@@ -263,7 +263,18 @@ export const useChatStore = create<ChatState>((set, get) => ({
   },
 
   pollDocumentStatus: (documentId: string) => {
+    // A failed poll (backend restarting, cold start, brief 503) must not end polling —
+    // that left the document showing "processing" forever even after it finished.
+    let errors = 0;
+    const startedAt = Date.now();
     const interval = setInterval(async () => {
+      if (Date.now() - startedAt > 15 * 60 * 1000) {
+        clearInterval(interval);
+        set((state) => ({
+          documents: state.documents.map((d) => (d.id === documentId ? { ...d, status: "failed" } : d)),
+        }));
+        return;
+      }
       try {
         const status = await api.get<DocumentItem & { page_count: number | null }>(
           `/documents/${documentId}/status`,
@@ -280,8 +291,10 @@ export const useChatStore = create<ChatState>((set, get) => ({
             get().loadDocuments();
           }
         }
+        errors = 0;
       } catch {
-        clearInterval(interval);
+        errors += 1;
+        if (errors >= 30) clearInterval(interval);
       }
     }, 2000);
   },
