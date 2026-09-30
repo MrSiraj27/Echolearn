@@ -9,6 +9,10 @@ from app.core.config import settings
 # dev machine but reliably OOM-kills a memory-constrained host (e.g. Render's free
 # 512MB tier) the moment the app embeds its first chunk.
 MODEL_NAME = "sentence-transformers/all-MiniLM-L6-v2"
+# fastembed's default batch_size (256) makes ONNX allocate activations for 256 full-length
+# chunks at once: measured ~1.2GB peak RSS embedding a longish document, which OOM-kills a
+# 512MB host mid-upload. Batches of 16 peak at ~280MB for the same input.
+EMBED_BATCH_SIZE = 16
 
 
 @lru_cache(maxsize=1)
@@ -20,4 +24,4 @@ def get_embedding_model():
 
 def get_embeddings(texts: list[str]) -> list[list[float]]:
     model = get_embedding_model()
-    return [vec.tolist() for vec in model.embed(texts)]
+    return [vec.tolist() for vec in model.embed(texts, batch_size=EMBED_BATCH_SIZE)]
