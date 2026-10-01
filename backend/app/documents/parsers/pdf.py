@@ -1,4 +1,5 @@
 import logging
+import time
 
 import pdfplumber
 
@@ -16,6 +17,11 @@ MIN_TEXT_LENGTH_BEFORE_OCR = 20
 # fail. So only OCR when most pages have no text layer at all.
 SCANNED_PAGE_RATIO = 0.5
 OCR_RESOLUTION = 150
+# OCR costs seconds per page on a fast CPU and far more on Render's 0.1-vCPU free tier, so a
+# long scanned PDF could otherwise hold the single parse slot (and sit on "processing") for
+# an hour or more. Once the budget is spent the remaining pages are kept without OCR text,
+# so the document still becomes usable with whatever was read.
+OCR_TIME_BUDGET_SECONDS = 240
 
 
 def parse_pdf(file_path: str) -> list[ParsedPage]:
@@ -26,10 +32,15 @@ def parse_pdf(file_path: str) -> list[ParsedPage]:
         sparse = [i for i, text in enumerate(texts) if len(text) < MIN_TEXT_LENGTH_BEFORE_OCR]
         is_scanned = bool(texts) and len(sparse) / len(texts) >= SCANNED_PAGE_RATIO
 
+        ocr_started = time.monotonic()
+        ocr_skipped = 0
+
         for i, page in enumerate(pdf.pages):
             text = texts[i]
 
-            if is_scanned and i in sparse:
+            if is_scanned and i in sparse and time.monotonic() - ocr_started > OCR_TIME_BUDGET_SECONDS:
+                ocr_skipped += 1
+            elif is_scanned and i in sparse:
                 try:
                     image = page.to_image(resolution=OCR_RESOLUTION).original
                     ocr_text = ocr_image(image)
@@ -48,5 +59,9 @@ def parse_pdf(file_path: str) -> list[ParsedPage]:
                 logger.exception("Table extraction failed for PDF page %d of %s", i + 1, file_path)
 
             pages.append(ParsedPage(page_number=i + 1, text=text, tables=tables))
+            page.flush_cache()
+
+        if ocr_skipped:
+            logger.warning("OCR time budget hit for %s: %d page(s) left unread", file_path, ocr_skipped)
 
     return pages
