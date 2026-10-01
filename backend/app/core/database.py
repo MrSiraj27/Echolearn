@@ -7,7 +7,14 @@ from app.core.config import settings
 # can silently drop connections sitting in the pool; without these, the next request after
 # an idle period fails with "server closed the connection unexpectedly" instead of
 # transparently reconnecting. Harmless against an always-on local Postgres too.
-engine = create_engine(settings.DATABASE_URL, pool_pre_ping=True, pool_recycle=300)
+# connect_timeout: without it a stalled connection to the database blocks forever, and since
+# startup runs migrations first, the whole API never comes up (every request then 503s).
+engine = create_engine(
+    settings.DATABASE_URL,
+    pool_pre_ping=True,
+    pool_recycle=300,
+    connect_args={"connect_timeout": 20},
+)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 Base = declarative_base()
