@@ -27,6 +27,7 @@ import {
 import { useChatStore } from "@/lib/chat-store";
 import { useAuth } from "@/lib/auth-context";
 import { api } from "@/lib/api";
+import { useBusy } from "@/lib/use-busy";
 import {
   AUDIO_VIDEO_EXTENSIONS,
   DocumentItem,
@@ -113,20 +114,26 @@ function DocumentRow({
   onDelete,
   onMove,
   onCreateFolder,
+  deleting,
 }: {
   doc: DocumentItem;
   folders: Folder[];
   onSearch: () => void;
   onDelete: () => void;
-  onMove: (folderId: string | null) => void;
+  onMove: (folderId: string | null) => void | Promise<void>;
   onCreateFolder: (name: string) => Promise<Folder>;
+  deleting: boolean;
 }) {
   const [expanded, setExpanded] = useState(false);
   const searchable = SEARCHABLE_STATUSES.includes(doc.status);
   const hasSummary = doc.status === "ready" && doc.summary;
 
   return (
-    <div className="rounded-lg hover:bg-neutral-100 dark:hover:bg-neutral-800/60">
+    <div
+      className={`rounded-lg hover:bg-neutral-100 dark:hover:bg-neutral-800/60 transition-opacity ${
+        deleting ? "opacity-50 pointer-events-none" : ""
+      }`}
+    >
       <div
         className="group flex items-center justify-between gap-2 px-2.5 py-2 cursor-pointer"
         onClick={() => hasSummary && setExpanded((v) => !v)}
@@ -163,10 +170,13 @@ function DocumentRow({
               e.stopPropagation();
               onDelete();
             }}
-            className="opacity-0 group-hover:opacity-100 text-neutral-400 hover:text-red-600 dark:hover:text-red-400 p-0.5 transition-opacity"
+            disabled={deleting}
+            className={`${
+              deleting ? "opacity-100" : "opacity-0 group-hover:opacity-100"
+            } text-neutral-400 hover:text-red-600 dark:hover:text-red-400 p-0.5 transition-opacity`}
             aria-label="Delete document"
           >
-            <X className="h-3.5 w-3.5" />
+            {deleting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <X className="h-3.5 w-3.5" />}
           </button>
         </div>
       </div>
@@ -234,6 +244,7 @@ export default function Sidebar({ activeChatId }: { activeChatId?: string }) {
   const [startingWorkspaceId, setStartingWorkspaceId] = useState<string | null>(null);
   const [mobileOpen, setMobileOpen] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const { isBusy, run } = useBusy();
 
   useEffect(() => {
     api
@@ -435,15 +446,22 @@ export default function Sidebar({ activeChatId }: { activeChatId?: string }) {
                 <p className="truncate text-xs text-neutral-400 dark:text-neutral-500">{timeAgo(chat.created_at)}</p>
               </Link>
               <button
-                onClick={(e) => {
+                onClick={async (e) => {
                   e.preventDefault();
-                  deleteChat(chat.id);
+                  await run(`chat:${chat.id}`, () => deleteChat(chat.id));
                   if (activeChatId === chat.id) router.push("/chat");
                 }}
-                className="absolute right-1.5 top-1.5 opacity-0 group-hover:opacity-100 text-neutral-400 hover:text-red-600 dark:hover:text-red-400 p-1 rounded transition-opacity"
+                disabled={isBusy(`chat:${chat.id}`)}
+                className={`absolute right-1.5 top-1.5 ${
+                  isBusy(`chat:${chat.id}`) ? "opacity-100" : "opacity-0 group-hover:opacity-100"
+                } text-neutral-400 hover:text-red-600 dark:hover:text-red-400 p-1 rounded transition-opacity`}
                 aria-label="Delete chat"
               >
-                <X className="h-3.5 w-3.5" />
+                {isBusy(`chat:${chat.id}`) ? (
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                ) : (
+                  <X className="h-3.5 w-3.5" />
+                )}
               </button>
             </motion.div>
           ))}
@@ -479,7 +497,7 @@ export default function Sidebar({ activeChatId }: { activeChatId?: string }) {
             setDragOver(false);
             handleFiles(e.dataTransfer.files);
           }}
-          onClick={() => fileInputRef.current?.click()}
+          onClick={() => !uploading && fileInputRef.current?.click()}
           className={`border border-dashed rounded-lg px-3 py-3 text-center text-xs cursor-pointer transition-colors mb-2 ${
             dragOver
               ? "border-neutral-900 dark:border-neutral-100 bg-neutral-100 dark:bg-neutral-800"
@@ -493,7 +511,14 @@ export default function Sidebar({ activeChatId }: { activeChatId?: string }) {
             onChange={(e) => handleFiles(e.target.files)}
             accept=".pdf,.docx,.pptx,.txt,.csv,.png,.jpg,.jpeg,.mp3,.wav,.m4a,.mp4,.mov"
           />
-          {uploading ? "Uploading..." : "Drop a file or click to upload"}
+          {uploading ? (
+            <span className="inline-flex items-center justify-center gap-1.5">
+              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              Uploading...
+            </span>
+          ) : (
+            "Drop a file or click to upload"
+          )}
         </div>
         {uploadError && <p className="text-xs text-red-600 dark:text-red-400 px-1 mb-2">{uploadError}</p>}
 
@@ -558,11 +583,18 @@ export default function Sidebar({ activeChatId }: { activeChatId?: string }) {
                     <span className="text-neutral-400 dark:text-neutral-500 shrink-0">({folderDocs.length})</span>
                   </button>
                   <button
-                    onClick={() => deleteFolder(folder.id)}
-                    className="opacity-0 group-hover:opacity-100 text-neutral-400 hover:text-red-600 dark:hover:text-red-400 p-0.5 transition-opacity shrink-0"
+                    onClick={() => run(`folder:${folder.id}`, () => deleteFolder(folder.id))}
+                    disabled={isBusy(`folder:${folder.id}`)}
+                    className={`${
+                      isBusy(`folder:${folder.id}`) ? "opacity-100" : "opacity-0 group-hover:opacity-100"
+                    } text-neutral-400 hover:text-red-600 dark:hover:text-red-400 p-0.5 transition-opacity shrink-0`}
                     aria-label={`Delete folder ${folder.name}`}
                   >
-                    <X className="h-3 w-3" />
+                    {isBusy(`folder:${folder.id}`) ? (
+                      <Loader2 className="h-3 w-3 animate-spin" />
+                    ) : (
+                      <X className="h-3 w-3" />
+                    )}
                   </button>
                 </div>
                 <AnimatePresence initial={false}>
@@ -579,9 +611,10 @@ export default function Sidebar({ activeChatId }: { activeChatId?: string }) {
                           doc={doc}
                           folders={folders}
                           onSearch={() => setSearchingDoc(doc)}
-                          onDelete={() => deleteDocument(doc.id)}
+                          onDelete={() => run(`doc:${doc.id}`, () => deleteDocument(doc.id))}
                           onMove={(folderId) => moveDocumentToFolder(doc.id, folderId)}
                           onCreateFolder={createFolder}
+                          deleting={isBusy(`doc:${doc.id}`)}
                         />
                       ))}
                       {folderDocs.length === 0 && (
@@ -605,9 +638,10 @@ export default function Sidebar({ activeChatId }: { activeChatId?: string }) {
                   doc={doc}
                   folders={folders}
                   onSearch={() => setSearchingDoc(doc)}
-                  onDelete={() => deleteDocument(doc.id)}
+                  onDelete={() => run(`doc:${doc.id}`, () => deleteDocument(doc.id))}
                   onMove={(folderId) => moveDocumentToFolder(doc.id, folderId)}
                   onCreateFolder={createFolder}
+                  deleting={isBusy(`doc:${doc.id}`)}
                 />
               ))}
             </div>
@@ -639,25 +673,43 @@ export default function Sidebar({ activeChatId }: { activeChatId?: string }) {
                 disabled={startingWorkspaceId === workspace.id}
                 className="flex-1 min-w-0 flex items-center gap-1.5 text-left px-2.5 py-2 text-sm text-neutral-700 dark:text-neutral-300 disabled:opacity-50"
               >
-                <FolderKanban className="h-3.5 w-3.5 shrink-0 text-neutral-400" />
+                {startingWorkspaceId === workspace.id ? (
+                  <Loader2 className="h-3.5 w-3.5 shrink-0 animate-spin text-neutral-400" />
+                ) : (
+                  <FolderKanban className="h-3.5 w-3.5 shrink-0 text-neutral-400" />
+                )}
                 <span className="truncate">{workspace.name}</span>
                 <span className="text-xs text-neutral-400 dark:text-neutral-500 shrink-0">
                   ({workspace.document_count})
                 </span>
               </button>
               <button
-                onClick={() => openManageWorkspace(workspace)}
-                className="opacity-0 group-hover:opacity-100 text-neutral-400 hover:text-neutral-700 dark:hover:text-neutral-200 p-0.5 transition-opacity shrink-0"
+                onClick={() => run(`wsmanage:${workspace.id}`, () => openManageWorkspace(workspace))}
+                disabled={isBusy(`wsmanage:${workspace.id}`)}
+                className={`${
+                  isBusy(`wsmanage:${workspace.id}`) ? "opacity-100" : "opacity-0 group-hover:opacity-100"
+                } text-neutral-400 hover:text-neutral-700 dark:hover:text-neutral-200 p-0.5 transition-opacity shrink-0`}
                 aria-label={`Manage ${workspace.name}`}
               >
-                <Settings2 className="h-3.5 w-3.5" />
+                {isBusy(`wsmanage:${workspace.id}`) ? (
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                ) : (
+                  <Settings2 className="h-3.5 w-3.5" />
+                )}
               </button>
               <button
-                onClick={() => deleteWorkspace(workspace.id)}
-                className="opacity-0 group-hover:opacity-100 text-neutral-400 hover:text-red-600 dark:hover:text-red-400 p-0.5 mr-1.5 transition-opacity shrink-0"
+                onClick={() => run(`ws:${workspace.id}`, () => deleteWorkspace(workspace.id))}
+                disabled={isBusy(`ws:${workspace.id}`)}
+                className={`${
+                  isBusy(`ws:${workspace.id}`) ? "opacity-100" : "opacity-0 group-hover:opacity-100"
+                } text-neutral-400 hover:text-red-600 dark:hover:text-red-400 p-0.5 mr-1.5 transition-opacity shrink-0`}
                 aria-label={`Delete ${workspace.name}`}
               >
-                <X className="h-3.5 w-3.5" />
+                {isBusy(`ws:${workspace.id}`) ? (
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                ) : (
+                  <X className="h-3.5 w-3.5" />
+                )}
               </button>
             </div>
           ))}

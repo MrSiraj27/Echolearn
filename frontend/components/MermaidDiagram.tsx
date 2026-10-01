@@ -1,9 +1,12 @@
 "use client";
 
 import { useEffect, useRef, useState, useId } from "react";
-import { Download, AlertTriangle, X } from "lucide-react";
+import { Download, AlertTriangle, X, Loader2 } from "lucide-react";
+import { useBusy } from "@/lib/use-busy";
 
-export default function MermaidDiagram({ code, onDelete }: { code: string; onDelete?: () => void }) {
+export default function MermaidDiagram({ code, onDelete }: { code: string; onDelete?: () => void | Promise<void> }) {
+  const { isBusy, run } = useBusy();
+  const removing = isBusy("remove");
   const containerRef = useRef<HTMLDivElement>(null);
   const [svg, setSvg] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -100,12 +103,13 @@ export default function MermaidDiagram({ code, onDelete }: { code: string; onDel
         <span className="flex-1">{error}</span>
         {onDelete && (
           <button
-            onClick={onDelete}
-            className="shrink-0 flex items-center gap-1 text-xs font-medium text-amber-700 dark:text-amber-400 hover:text-amber-900 dark:hover:text-amber-200 transition-colors"
+            onClick={() => run("remove", async () => onDelete())}
+            disabled={removing}
+            className="shrink-0 flex items-center gap-1 text-xs font-medium text-amber-700 dark:text-amber-400 hover:text-amber-900 dark:hover:text-amber-200 transition-colors disabled:opacity-60"
             aria-label="Delete this diagram"
           >
-            <X className="h-3.5 w-3.5" />
-            Remove
+            {removing ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <X className="h-3.5 w-3.5" />}
+            {removing ? "Removing…" : "Remove"}
           </button>
         )}
       </div>
