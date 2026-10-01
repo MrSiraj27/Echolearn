@@ -1,0 +1,8 @@
+{$DOMAIN} {
+	# Long timeouts: uploads and voice cloning can take a while.
+	reverse_proxy backend:8000 {
+		transport http {
+			response_header_timeout 300s
+		}
+	}
+}

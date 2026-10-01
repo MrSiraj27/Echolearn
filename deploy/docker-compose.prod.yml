@@ -1,0 +1,32 @@
+# Production stack for a single VM (e.g. Oracle Always Free): the FastAPI backend plus
+# Caddy, which terminates HTTPS (auto Let's Encrypt cert) and proxies to the backend.
+# Run from the repo root:  docker compose -f deploy/docker-compose.prod.yml up -d --build
+services:
+  backend:
+    build: ../backend
+    restart: unless-stopped
+    env_file: ../backend/.env
+    volumes:
+      - appdata:/data
+    expose:
+      - "8000"
+
+  caddy:
+    image: caddy:2
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      DOMAIN: ${DOMAIN}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - backend
+
+volumes:
+  appdata:
+  caddy_data:
+  caddy_config:

@@ -2,9 +2,11 @@ FROM python:3.11-slim
 
 WORKDIR /app
 
+# libgl1 / libglib2.0-0: required by opencv (used by RapidOCR). ffmpeg comes from the
+# imageio-ffmpeg pip package, and OCR is RapidOCR (no tesseract needed).
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    tesseract-ocr \
     libgl1 \
+    libglib2.0-0 \
     && rm -rf /var/lib/apt/lists/*
 
 COPY requirements.txt .
@@ -14,7 +16,8 @@ COPY . .
 
 ENV STORAGE_PATH=/data/storage
 ENV CHROMA_PATH=/data/chroma
-RUN mkdir -p /data/storage /data/chroma
+ENV HF_HOME=/data/models
+RUN mkdir -p /data/storage /data/chroma /data/models
 
 EXPOSE 8000
 
