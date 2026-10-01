@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { AnimatePresence, motion } from "framer-motion";
-import { FolderInput, Check } from "lucide-react";
+import { FolderInput, Check, Loader2 } from "lucide-react";
 import { Folder } from "@/lib/types";
 
 export default function MoveToFolderMenu({
@@ -14,11 +14,12 @@ export default function MoveToFolderMenu({
 }: {
   folders: Folder[];
   currentFolderId: string | null | undefined;
-  onMove: (folderId: string | null) => void;
+  onMove: (folderId: string | null) => void | Promise<void>;
   onCreateFolder: (name: string) => Promise<Folder>;
 }) {
   const [open, setOpen] = useState(false);
   const [creating, setCreating] = useState(false);
+  const [moving, setMoving] = useState(false);
   const [newName, setNewName] = useState("");
   const [position, setPosition] = useState<{ top: number; right: number } | null>(null);
   const buttonRef = useRef<HTMLButtonElement>(null);
@@ -56,14 +57,29 @@ export default function MoveToFolderMenu({
     };
   }, [open]);
 
+  // Closes the menu straight away and shows a spinner on the trigger button until the
+  // request lands, so the move doesn't look like it did nothing on a slow connection.
+  async function runMove(action: () => Promise<void> | void) {
+    setOpen(false);
+    setMoving(true);
+    try {
+      await action();
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setMoving(false);
+    }
+  }
+
   async function handleCreateAndMove() {
     const name = newName.trim();
     if (!name) return;
-    const folder = await onCreateFolder(name);
-    onMove(folder.id);
     setNewName("");
     setCreating(false);
-    setOpen(false);
+    await runMove(async () => {
+      const folder = await onCreateFolder(name);
+      await onMove(folder.id);
+    });
   }
 
   return (
@@ -74,10 +90,13 @@ export default function MoveToFolderMenu({
           e.stopPropagation();
           setOpen((v) => !v);
         }}
-        className="opacity-0 group-hover:opacity-100 text-neutral-400 hover:text-neutral-700 dark:hover:text-neutral-200 p-0.5 transition-opacity"
+        disabled={moving}
+        className={`${
+          moving ? "opacity-100" : "opacity-0 group-hover:opacity-100"
+        } text-neutral-400 hover:text-neutral-700 dark:hover:text-neutral-200 p-0.5 transition-opacity`}
         aria-label="Move to folder"
       >
-        <FolderInput className="h-3.5 w-3.5" />
+        {moving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <FolderInput className="h-3.5 w-3.5" />}
       </button>
 
       {typeof document !== "undefined" &&
@@ -95,10 +114,7 @@ export default function MoveToFolderMenu({
                 className="w-48 bg-white dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 rounded-lg shadow-lg overflow-hidden z-50"
               >
                 <button
-                  onClick={() => {
-                    onMove(null);
-                    setOpen(false);
-                  }}
+                  onClick={() => runMove(() => onMove(null))}
                   className="w-full flex items-center justify-between text-left text-xs text-neutral-700 dark:text-neutral-200 px-3 py-2 hover:bg-neutral-50 dark:hover:bg-neutral-700 transition-colors"
                 >
                   No folder
@@ -109,10 +125,7 @@ export default function MoveToFolderMenu({
                   {folders.map((folder) => (
                     <button
                       key={folder.id}
-                      onClick={() => {
-                        onMove(folder.id);
-                        setOpen(false);
-                      }}
+                      onClick={() => runMove(() => onMove(folder.id))}
                       className="w-full flex items-center justify-between text-left text-xs text-neutral-700 dark:text-neutral-200 px-3 py-2 hover:bg-neutral-50 dark:hover:bg-neutral-700 transition-colors"
                     >
                       <span className="truncate">{folder.name}</span>

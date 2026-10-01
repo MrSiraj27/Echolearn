@@ -29,6 +29,7 @@ export default function SettingsPage() {
   const [recording, setRecording] = useState(false);
   const [seconds, setSeconds] = useState(0);
   const [uploading, setUploading] = useState(false);
+  const [deletingSample, setDeletingSample] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [cloneAvailable, setCloneAvailable] = useState(true);
@@ -219,6 +220,7 @@ export default function SettingsPage() {
   }
 
   async function deleteSample() {
+    setDeletingSample(true);
     try {
       await api.delete("/voice/sample", { auth: true });
       setHasSample(false);
@@ -230,6 +232,8 @@ export default function SettingsPage() {
       refreshVoiceSample();
     } catch {
       setError("Couldn't delete your sample. Please try again.");
+    } finally {
+      setDeletingSample(false);
     }
   }
 
@@ -339,10 +343,11 @@ export default function SettingsPage() {
                       </button>
                       <button
                         onClick={deleteSample}
-                        className="flex items-center gap-1.5 text-xs font-medium text-red-600 dark:text-red-400 border border-red-200 dark:border-red-900 rounded-lg px-3 py-1.5 hover:bg-red-50 dark:hover:bg-red-950/30"
+                        disabled={deletingSample}
+                        className="flex items-center gap-1.5 text-xs font-medium text-red-600 dark:text-red-400 border border-red-200 dark:border-red-900 rounded-lg px-3 py-1.5 hover:bg-red-50 dark:hover:bg-red-950/30 disabled:opacity-60"
                       >
-                        <Trash2 className="h-3.5 w-3.5" />
-                        Delete
+                        {deletingSample ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Trash2 className="h-3.5 w-3.5" />}
+                        {deletingSample ? "Deleting…" : "Delete"}
                       </button>
                     </div>
                   </div>

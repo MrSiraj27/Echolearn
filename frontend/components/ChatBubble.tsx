@@ -108,7 +108,7 @@ export default function ChatBubble({
   onRegenerate?: () => void;
   onFollowUp?: (question: string) => void;
   onSeek?: (seconds: number) => void;
-  onDeleteMessage?: (messageId: string) => void;
+  onDeleteMessage?: (messageId: string) => void | Promise<void>;
   precedingQuestion?: string;
   flashcardDocumentId?: string;
 }) {

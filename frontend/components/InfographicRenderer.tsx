@@ -1,14 +1,17 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { Download, X, AlertTriangle } from "lucide-react";
+import { Download, X, AlertTriangle, Loader2 } from "lucide-react";
+import { useBusy } from "@/lib/use-busy";
 import { InfographicPayload, StatsData, TimelineData, ComparisonData, SummaryData } from "@/lib/types";
 import StatsInfographic from "@/components/infographics/StatsInfographic";
 import TimelineInfographic from "@/components/infographics/TimelineInfographic";
 import ComparisonInfographic from "@/components/infographics/ComparisonInfographic";
 import SummaryInfographic from "@/components/infographics/SummaryInfographic";
 
-export default function InfographicRenderer({ content, onDelete }: { content: string; onDelete?: () => void }) {
+export default function InfographicRenderer({ content, onDelete }: { content: string; onDelete?: () => void | Promise<void> }) {
+  const { isBusy, run } = useBusy();
+  const removing = isBusy("remove");
   const containerRef = useRef<HTMLDivElement>(null);
   const [downloadError, setDownloadError] = useState<string | null>(null);
 
@@ -48,11 +51,12 @@ export default function InfographicRenderer({ content, onDelete }: { content: st
         <span className="flex-1">Couldn&apos;t render this infographic — the data may be corrupted.</span>
         {onDelete && (
           <button
-            onClick={onDelete}
-            className="shrink-0 flex items-center gap-1 text-xs font-medium text-amber-700 dark:text-amber-400 hover:text-amber-900 dark:hover:text-amber-200 transition-colors"
+            onClick={() => run("remove", async () => onDelete())}
+            disabled={removing}
+            className="shrink-0 flex items-center gap-1 text-xs font-medium text-amber-700 dark:text-amber-400 hover:text-amber-900 dark:hover:text-amber-200 transition-colors disabled:opacity-60"
           >
-            <X className="h-3.5 w-3.5" />
-            Remove
+            {removing ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <X className="h-3.5 w-3.5" />}
+            {removing ? "Removing…" : "Remove"}
           </button>
         )}
       </div>
@@ -77,11 +81,12 @@ export default function InfographicRenderer({ content, onDelete }: { content: st
         </button>
         {onDelete && (
           <button
-            onClick={onDelete}
-            className="flex items-center gap-1 text-xs font-medium text-neutral-400 dark:text-neutral-500 hover:text-red-600 dark:hover:text-red-400 transition-colors"
+            onClick={() => run("remove", async () => onDelete())}
+            disabled={removing}
+            className="flex items-center gap-1 text-xs font-medium text-neutral-400 dark:text-neutral-500 hover:text-red-600 dark:hover:text-red-400 transition-colors disabled:opacity-60"
           >
-            <X className="h-3.5 w-3.5" />
-            Remove
+            {removing ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <X className="h-3.5 w-3.5" />}
+            {removing ? "Removing…" : "Remove"}
           </button>
         )}
       </div>

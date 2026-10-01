@@ -60,6 +60,7 @@ export default function NewPracticePaperPage() {
   const [pastPapers, setPastPapers] = useState<PastPaperItem[]>([]);
   const [selectedPastIds, setSelectedPastIds] = useState<Set<string>>(new Set());
   const [uploading, setUploading] = useState(false);
+  const [removingPastId, setRemovingPastId] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
   // Step 3
@@ -146,6 +147,7 @@ export default function NewPracticePaperPage() {
   }
 
   async function removePastPaper(id: string) {
+    setRemovingPastId(id);
     try {
       await api.delete(`/past-papers/${id}`, { auth: true });
       setPastPapers((prev) => prev.filter((p) => p.id !== id));
@@ -156,6 +158,8 @@ export default function NewPracticePaperPage() {
       });
     } catch (err) {
       setError(err instanceof ApiError ? err.detail : "Couldn't remove that past paper.");
+    } finally {
+      setRemovingPastId(null);
     }
   }
 
@@ -461,10 +465,15 @@ export default function NewPracticePaperPage() {
                           )}
                           <button
                             onClick={() => removePastPaper(p.id)}
+                            disabled={removingPastId === p.id}
                             aria-label={`Remove ${p.filename}`}
                             className="text-neutral-400 hover:text-red-600 dark:hover:text-red-400"
                           >
-                            <Trash2 className="h-3.5 w-3.5" />
+                            {removingPastId === p.id ? (
+                              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                            ) : (
+                              <Trash2 className="h-3.5 w-3.5" />
+                            )}
                           </button>
                         </div>
                         {p.analysis_status === "ready" && pat && (
