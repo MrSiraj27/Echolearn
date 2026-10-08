@@ -48,6 +48,8 @@ class RevisionSheetResponse(BaseModel):
     page_target: int
     include_weak_spots: bool
     topics: list[str] | None = None
+    document_ids: list[str] = []
+    workspace_id: uuid.UUID | None = None
     content: dict | None = None
     error_message: str | None = None
     created_at: datetime

@@ -206,6 +206,12 @@ def fail_interrupted_sheets() -> int:
             sheet.error_message = "This was interrupted by a server restart. Please generate it again."
         db.commit()
         return len(stuck)
+    except Exception:
+        # Housekeeping only: e.g. the table doesn't exist yet because a migration failed. Never
+        # let that stop the whole API from starting.
+        logger.exception("Couldn't clean up interrupted revision sheets")
+        db.rollback()
+        return 0
     finally:
         db.close()
 
@@ -319,7 +325,7 @@ def get_sheet(sheet_id: uuid.UUID, current_user: User = Depends(get_current_user
     return RevisionSheetResponse(
         id=sheet.id, title=sheet.title, status=sheet.status.value, language=sheet.language,
         page_target=sheet.page_target, include_weak_spots=sheet.include_weak_spots, topics=sheet.topics,
-        content=sheet.content, error_message=sheet.error_message, created_at=sheet.created_at,
+        document_ids=sheet.document_ids or [], workspace_id=sheet.workspace_id, content=sheet.content, error_message=sheet.error_message, created_at=sheet.created_at,
     )
 
 

@@ -17,6 +17,9 @@ interface PlanLimits {
   tts_uses_per_day: number | null;
   diagrams_infographics_per_month: number | null;
   language_explanations_per_day?: number | null;
+  revision_sheets_per_month?: number | null;
+  revision_sheet_max_pages?: number | null;
+  revision_sheet_advanced?: boolean;
   max_storage_mb: number | null;
   priority_processing: boolean;
 }
@@ -117,6 +120,13 @@ export default function UpgradePage() {
                     <li className="flex items-start gap-2 text-xs text-neutral-600 dark:text-neutral-400">
                       <Check className="h-3.5 w-3.5 text-neutral-400 shrink-0 mt-0.5" />
                       {formatLimit(plan.limits.language_explanations_per_day ?? null, "Urdu explanations / day")}
+                    </li>
+                    <li className="flex items-start gap-2 text-xs text-neutral-600 dark:text-neutral-400">
+                      <Check className="h-3.5 w-3.5 text-neutral-400 shrink-0 mt-0.5" />
+                      {formatLimit(plan.limits.revision_sheets_per_month ?? null, "revision sheets / month")}
+                      {plan.limits.revision_sheet_advanced === false
+                        ? " (1 page, English)"
+                        : ` (up to ${plan.limits.revision_sheet_max_pages ?? 2} pages, Urdu & weak spots)`}
                     </li>
                     <li className="flex items-start gap-2 text-xs text-neutral-600 dark:text-neutral-400">
                       <Check className="h-3.5 w-3.5 text-neutral-400 shrink-0 mt-0.5" />

@@ -2,8 +2,11 @@
 
 import { use, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, CheckCircle2, XCircle, Loader2, AlertTriangle } from "lucide-react";
+import { AnimatePresence } from "framer-motion";
+import { ArrowLeft, CheckCircle2, XCircle, Loader2, AlertTriangle, ScrollText } from "lucide-react";
 import Sidebar from "@/components/Sidebar";
+import RevisionSheetModal from "@/components/RevisionSheetModal";
+import { useChatStore } from "@/lib/chat-store";
 import { api, ApiError } from "@/lib/api";
 import { PlanStatusResponse, StudyPlanDetailResponse, StudySessionPublic, StudySessionType } from "@/lib/types";
 
@@ -38,6 +41,9 @@ export default function StudyPlanDetailPage({ params }: { params: Promise<{ plan
   const { planId } = use(params);
   const router = useRouter();
   const [plan, setPlan] = useState<StudyPlanDetailResponse | null>(null);
+  const [showRevision, setShowRevision] = useState(false);
+  const documents = useChatStore((s) => s.documents);
+  const loadDocuments = useChatStore((s) => s.loadDocuments);
   const [planStatus, setPlanStatus] = useState<PlanStatusResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -137,6 +143,17 @@ export default function StudyPlanDetailPage({ params }: { params: Promise<{ plan
             {plan.completed_count} of {plan.session_count} sessions completed
           </p>
 
+          <button
+            onClick={() => {
+              loadDocuments().catch(() => {});
+              setShowRevision(true);
+            }}
+            className="flex items-center gap-1.5 text-xs font-medium border border-neutral-300 dark:border-neutral-700 text-neutral-700 dark:text-neutral-300 rounded-lg px-3 py-1.5 hover:bg-neutral-50 dark:hover:bg-neutral-800 transition-colors mb-4"
+          >
+            <ScrollText className="h-3.5 w-3.5" />
+            Last-night revision sheet
+          </button>
+
           {statusInfo && (
             <div className={`flex items-center gap-2 text-sm mb-2 ${statusInfo.tone}`}>
               {planStatus?.status === "significantly_behind" && <AlertTriangle className="h-4 w-4" />}
@@ -207,6 +224,22 @@ export default function StudyPlanDetailPage({ params }: { params: Promise<{ plan
           </div>
         </div>
       </main>
+
+      <AnimatePresence>
+        {showRevision && (
+          <RevisionSheetModal
+            documents={documents}
+            preselectedDocumentIds={plan.document_ids ?? []}
+            workspace={
+              plan.workspace_id
+                ? { id: plan.workspace_id, name: plan.title, label: "All documents in this plan's workspace" }
+                : null
+            }
+            defaultTitle={`Revision sheet - ${plan.title}`}
+            onClose={() => setShowRevision(false)}
+          />
+        )}
+      </AnimatePresence>
     </>
   );
 }

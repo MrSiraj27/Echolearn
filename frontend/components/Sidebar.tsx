@@ -23,6 +23,7 @@ import {
   BarChart3,
   CalendarClock,
   ClipboardList,
+  ScrollText,
 } from "lucide-react";
 import { useChatStore } from "@/lib/chat-store";
 import { useAuth } from "@/lib/auth-context";
@@ -35,6 +36,7 @@ import {
   Folder,
   PracticePaperListItem,
   QuizListItem,
+  RevisionSheetListItem,
   StudyPlanResponse,
   VIDEO_EXTENSIONS,
   Workspace,
@@ -45,6 +47,7 @@ import SettingsMenu from "@/components/SettingsMenu";
 import MoveToFolderMenu from "@/components/MoveToFolderMenu";
 import SelectChatScopeModal from "@/components/SelectChatScopeModal";
 import WorkspaceModal from "@/components/WorkspaceModal";
+import RevisionSheetModal from "@/components/RevisionSheetModal";
 import UsagePanel from "@/components/UsagePanel";
 import DailyReviewCard from "@/components/DailyReviewCard";
 import DailyStudyPlanCard from "@/components/DailyStudyPlanCard";
@@ -115,6 +118,7 @@ function DocumentRow({
   onMove,
   onCreateFolder,
   deleting,
+  onRevise,
 }: {
   doc: DocumentItem;
   folders: Folder[];
@@ -123,6 +127,7 @@ function DocumentRow({
   onMove: (folderId: string | null) => void | Promise<void>;
   onCreateFolder: (name: string) => Promise<Folder>;
   deleting: boolean;
+  onRevise: () => void;
 }) {
   const [expanded, setExpanded] = useState(false);
   const searchable = SEARCHABLE_STATUSES.includes(doc.status);
@@ -157,6 +162,19 @@ function DocumentRow({
               aria-label={`Search in ${doc.filename}`}
             >
               <Search className="h-3.5 w-3.5" />
+            </button>
+          )}
+          {searchable && (
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                onRevise();
+              }}
+              className="opacity-0 group-hover:opacity-100 text-neutral-400 hover:text-neutral-700 dark:hover:text-neutral-200 p-0.5 transition-opacity"
+              aria-label={`Revision sheet for ${doc.filename}`}
+              title="Make a revision sheet"
+            >
+              <ScrollText className="h-3.5 w-3.5" />
             </button>
           )}
           <MoveToFolderMenu
@@ -238,6 +256,11 @@ export default function Sidebar({ activeChatId }: { activeChatId?: string }) {
   const [quizzes, setQuizzes] = useState<QuizListItem[]>([]);
   const [studyPlans, setStudyPlans] = useState<StudyPlanResponse[]>([]);
   const [practicePapers, setPracticePapers] = useState<PracticePaperListItem[]>([]);
+  const [revisionSheets, setRevisionSheets] = useState<RevisionSheetListItem[]>([]);
+  const [revisionModal, setRevisionModal] = useState<{
+    documentIds: string[];
+    workspace?: { id: string; name: string };
+  } | null>(null);
   const [showScopeModal, setShowScopeModal] = useState(false);
   const [showNewWorkspaceModal, setShowNewWorkspaceModal] = useState(false);
   const [managingWorkspace, setManagingWorkspace] = useState<Workspace | null>(null);
@@ -260,6 +283,10 @@ export default function Sidebar({ activeChatId }: { activeChatId?: string }) {
       .get<PracticePaperListItem[]>("/practice-papers/", { auth: true })
       .then((papers) => setPracticePapers(papers.filter((p) => p.status !== "failed").slice(0, 5)))
       .catch(() => setPracticePapers([]));
+    api
+      .get<RevisionSheetListItem[]>("/revision-sheets/", { auth: true })
+      .then((sheets) => setRevisionSheets(sheets.filter((s) => s.status !== "failed").slice(0, 5)))
+      .catch(() => setRevisionSheets([]));
   }, []);
 
   useEffect(() => {
@@ -617,6 +644,7 @@ export default function Sidebar({ activeChatId }: { activeChatId?: string }) {
                           onMove={(folderId) => moveDocumentToFolder(doc.id, folderId)}
                           onCreateFolder={createFolder}
                           deleting={isBusy(`doc:${doc.id}`)}
+                          onRevise={() => setRevisionModal({ documentIds: [doc.id] })}
                         />
                       ))}
                       {folderDocs.length === 0 && (
@@ -644,6 +672,7 @@ export default function Sidebar({ activeChatId }: { activeChatId?: string }) {
                   onMove={(folderId) => moveDocumentToFolder(doc.id, folderId)}
                   onCreateFolder={createFolder}
                   deleting={isBusy(`doc:${doc.id}`)}
+                  onRevise={() => setRevisionModal({ documentIds: [doc.id] })}
                 />
               ))}
             </div>
@@ -684,6 +713,14 @@ export default function Sidebar({ activeChatId }: { activeChatId?: string }) {
                 <span className="text-xs text-neutral-400 dark:text-neutral-500 shrink-0">
                   ({workspace.document_count})
                 </span>
+              </button>
+              <button
+                onClick={() => setRevisionModal({ documentIds: [], workspace: { id: workspace.id, name: workspace.name } })}
+                className="opacity-0 group-hover:opacity-100 text-neutral-400 hover:text-neutral-700 dark:hover:text-neutral-200 p-0.5 transition-opacity shrink-0"
+                aria-label={`Revision sheet for ${workspace.name}`}
+                title="Make a revision sheet for this workspace"
+              >
+                <ScrollText className="h-3.5 w-3.5" />
               </button>
               <button
                 onClick={() => run(`wsmanage:${workspace.id}`, () => openManageWorkspace(workspace))}
@@ -803,6 +840,48 @@ export default function Sidebar({ activeChatId }: { activeChatId?: string }) {
           View all papers →
         </Link>
 
+        <div className="flex items-center justify-between px-1 mb-1 mt-5">
+          <p className="text-[11px] font-semibold text-neutral-400 dark:text-neutral-500 uppercase tracking-wide">
+            Revision Sheets
+          </p>
+          <button
+            onClick={() => setRevisionModal({ documentIds: [] })}
+            className="text-neutral-400 hover:text-neutral-700 dark:hover:text-neutral-200 transition-colors"
+            aria-label="New revision sheet"
+          >
+            <Plus className="h-3.5 w-3.5" />
+          </button>
+        </div>
+        {revisionSheets.length === 0 ? (
+          <p className="text-xs text-neutral-400 dark:text-neutral-500 px-1 py-1">
+            A one-page cheat sheet for the night before your exam.
+          </p>
+        ) : (
+          <div className="space-y-1">
+            {revisionSheets.map((sheet) => (
+              <Link
+                key={sheet.id}
+                href={`/revision-sheets/${sheet.id}`}
+                onClick={() => setMobileOpen(false)}
+                className="flex items-center gap-1.5 rounded-lg px-2.5 py-2 text-sm text-neutral-600 dark:text-neutral-400 hover:bg-neutral-100 dark:hover:bg-neutral-800/60 transition-colors"
+              >
+                <ScrollText className="h-3.5 w-3.5 shrink-0 text-neutral-400" />
+                <span className="truncate">{sheet.title}</span>
+                {(sheet.status === "queued" || sheet.status === "generating") && (
+                  <Loader2 className="h-3 w-3 shrink-0 animate-spin text-neutral-400" />
+                )}
+              </Link>
+            ))}
+          </div>
+        )}
+        <Link
+          href="/revision-sheets"
+          onClick={() => setMobileOpen(false)}
+          className="block text-xs text-neutral-400 hover:text-neutral-700 dark:hover:text-neutral-200 px-1 py-1 transition-colors"
+        >
+          View all sheets →
+        </Link>
+
         {quizzes.length > 0 && (
           <>
             <p className="text-[11px] font-semibold text-neutral-400 dark:text-neutral-500 uppercase tracking-wide px-1 mb-1 mt-5">
@@ -875,6 +954,14 @@ export default function Sidebar({ activeChatId }: { activeChatId?: string }) {
               await createWorkspace(name, documentIds);
             }}
             onClose={() => setShowNewWorkspaceModal(false)}
+          />
+        )}
+        {revisionModal && (
+          <RevisionSheetModal
+            documents={documents}
+            preselectedDocumentIds={revisionModal.documentIds}
+            workspace={revisionModal.workspace ?? null}
+            onClose={() => setRevisionModal(null)}
           />
         )}
         {managingWorkspace && (

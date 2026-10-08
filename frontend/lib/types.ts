@@ -507,3 +507,67 @@ export interface PaperAttemptResult {
   pending_self_grade_count: number;
   results: PaperQuestionResult[];
 }
+
+// ---- Revision sheets ----------------------------------------------------------------------
+
+export type SheetLanguage = "en" | "ur" | "roman_ur" | "bilingual";
+export type SheetStatus = "queued" | "generating" | "ready" | "failed";
+
+export interface RevisionSheetListItem {
+  id: string;
+  title: string;
+  status: SheetStatus;
+  language: SheetLanguage;
+  page_target: number;
+  created_at: string;
+}
+
+export interface RevisionSheetItem {
+  id: string;
+  kind: "definition" | "formula" | "fact" | "key_point" | "process" | "watch_out";
+  rank: number;
+  ref: string; // "p.12", "14:32", or "D2 p.12" when several documents are mixed
+  doc_id: string;
+  page: number | null;
+  t: number | null;
+  term?: string;
+  definition?: string;
+  name?: string;
+  expression?: string;
+  when_to_use?: string;
+  fact?: string;
+  topic?: string;
+  point?: string;
+  steps?: string[];
+  gloss?: string; // Urdu line shown under the English text in bilingual sheets
+}
+
+export interface RevisionSheetContent {
+  title: string;
+  subtitle: string;
+  language: SheetLanguage;
+  page_target: number;
+  labels: Record<string, string>;
+  labels_ur?: Record<string, string>;
+  sections: { type: string; items: RevisionSheetItem[] }[];
+  self_check: { question: string; answer: string; ref: string }[];
+  sources: { tag: string; document: string; document_id: string; refs: string[] }[];
+  warnings: string[];
+  pages?: number;
+  dropped_items?: number;
+}
+
+export interface RevisionSheetDetail {
+  id: string;
+  title: string;
+  status: SheetStatus;
+  language: SheetLanguage;
+  page_target: number;
+  include_weak_spots: boolean;
+  topics: string[] | null;
+  document_ids: string[];
+  workspace_id: string | null;
+  content: RevisionSheetContent | null;
+  error_message: string | null;
+  created_at: string;
+}

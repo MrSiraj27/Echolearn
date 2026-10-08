@@ -15,6 +15,9 @@ interface PlanLimits {
   tts_uses_per_day: number | null;
   diagrams_infographics_per_month: number | null;
   language_explanations_per_day: number | null;
+  revision_sheets_per_month: number | null;
+  revision_sheet_max_pages: number | null;
+  revision_sheet_advanced: boolean;
   max_storage_mb: number | null;
   priority_processing: boolean;
 }
@@ -41,6 +44,9 @@ const LIMIT_ROWS: { key: keyof PlanLimits; label: string; type: "number" | "bool
   { key: "tts_uses_per_day", label: "TTS uses / day", type: "number" },
   { key: "diagrams_infographics_per_month", label: "Diagrams & infographics / month", type: "number" },
   { key: "language_explanations_per_day", label: "Urdu / Roman Urdu explanations / day", type: "number" },
+  { key: "revision_sheets_per_month", label: "Revision sheets / month", type: "number" },
+  { key: "revision_sheet_max_pages", label: "Revision sheet max pages (1-2)", type: "number" },
+  { key: "revision_sheet_advanced", label: "Revision sheet languages & weak spots", type: "bool" },
   { key: "max_storage_mb", label: "Max storage (MB)", type: "number" },
   { key: "priority_processing", label: "Priority processing", type: "bool" },
 ];
