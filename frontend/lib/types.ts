@@ -99,6 +99,19 @@ export interface SubmitQuizResponse {
   results: QuestionResult[];
 }
 
+// Languages an answer can be shown in: "en" is the original answer, the other two are
+// generated on request (or automatically, per the user's preference).
+export type ExplainLanguage = "ur" | "roman_ur";
+export type AppLanguage = "en" | ExplainLanguage;
+export type ExplainMode = "translate" | "simplify";
+
+export interface MessageTranslation {
+  language: ExplainLanguage;
+  mode: ExplainMode;
+  text: string;
+  fidelity_warning: boolean;
+}
+
 export interface ChatMessage {
   id: string;
   role: MessageRole;
@@ -107,6 +120,7 @@ export interface ChatMessage {
   created_at: string;
   followUps?: string[];
   content_type?: string;
+  translations?: MessageTranslation[];
 }
 
 export type InfographicTemplate = "stats" | "timeline" | "comparison" | "summary";

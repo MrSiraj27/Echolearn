@@ -4,8 +4,11 @@ import { useRef, useState } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { motion, AnimatePresence } from "framer-motion";
-import { Copy, Check, RotateCcw, BookOpen, Sparkles, BookmarkPlus, BookmarkCheck } from "lucide-react";
-import { ChatMessage } from "@/lib/types";
+import { Copy, Check, RotateCcw, BookOpen, Sparkles, BookmarkPlus, BookmarkCheck, Loader2 } from "lucide-react";
+import { AppLanguage, ChatMessage, ExplainLanguage, ExplainMode } from "@/lib/types";
+import { useChatStore } from "@/lib/chat-store";
+import UrduSpeakButton from "@/components/UrduSpeakButton";
+import { LANGUAGE_LABELS, LanguageTabs, TranslationBody, TranslationSkeleton } from "@/components/LanguageExplain";
 import ListenButton from "@/components/ListenButton";
 import ExplainModal from "@/components/ExplainModal";
 import SourceViewer from "@/components/SourceViewer";
@@ -127,6 +130,64 @@ export default function ChatBubble({
   } | null>(null);
   const contentRef = useRef<HTMLDivElement>(null);
   const isUser = message.role === "user";
+
+  // ---- Urdu / Roman Urdu explanations ------------------------------------------------
+  // Selectors (not the whole store) so streaming tokens don't re-render every bubble.
+  const languageTabByChat = useChatStore((s) => s.languageTabByChat);
+  const pendingLanguage = useChatStore((s) => s.pendingTranslations[message.id]);
+  const translationNotice = useChatStore((s) => s.translationNotices[message.id]);
+  const setLanguageTab = useChatStore((s) => s.setLanguageTab);
+  const explainMessage = useChatStore((s) => s.explainMessage);
+  const [explainMode, setExplainMode] = useState<ExplainMode>("translate");
+  const [loadingLanguage, setLoadingLanguage] = useState<ExplainLanguage | null>(null);
+  const [explainError, setExplainError] = useState<string | null>(null);
+
+  const translations = message.translations || [];
+  const storedTab = chatId ? languageTabByChat[chatId] : undefined;
+  // Show the chat's last-picked language only for messages that actually have it; others
+  // stay in English until the user asks.
+  const activeLanguage: AppLanguage = loadingLanguage
+    ? loadingLanguage
+    : storedTab && storedTab !== "en" && translations.some((t) => t.language === storedTab)
+      ? storedTab
+      : "en";
+  const shownTranslation =
+    activeLanguage === "en"
+      ? null
+      : (translations.find((t) => t.language === activeLanguage && t.mode === explainMode) ??
+        translations.find((t) => t.language === activeLanguage) ??
+        null);
+  const showTabs = !!chatId && (translations.length > 0 || loadingLanguage !== null || !!pendingLanguage);
+
+  async function handleSelectLanguage(language: AppLanguage, mode: ExplainMode = explainMode) {
+    if (!chatId) return;
+    setExplainError(null);
+    if (language === "en") {
+      setLanguageTab(chatId, "en");
+      return;
+    }
+    // Already generated (this session or loaded from the server): switch instantly.
+    if (translations.some((t) => t.language === language && t.mode === mode)) {
+      setLanguageTab(chatId, language);
+      return;
+    }
+    setLoadingLanguage(language);
+    try {
+      await explainMessage(chatId, message.id, language, mode);
+      setLanguageTab(chatId, language);
+    } catch (err) {
+      setExplainError(err instanceof ApiError ? err.detail : "Couldn't generate the explanation. Please try again.");
+    } finally {
+      setLoadingLanguage(null);
+    }
+  }
+
+  function handleToggleSimplify() {
+    if (activeLanguage === "en") return;
+    const next: ExplainMode = explainMode === "translate" ? "simplify" : "translate";
+    setExplainMode(next);
+    handleSelectLanguage(activeLanguage, next);
+  }
 
   async function handleCopy() {
     await navigator.clipboard.writeText(message.content);
@@ -274,16 +335,56 @@ export default function ChatBubble({
       className="flex justify-start relative"
     >
       <div className="max-w-[85%] min-w-0">
-        <div
-          ref={contentRef}
-          onMouseUp={handleMouseUp}
-          className="prose prose-sm dark:prose-invert prose-neutral max-w-none break-words text-neutral-800 dark:text-neutral-200 leading-relaxed [&_pre]:bg-neutral-900 [&_pre]:text-neutral-50 dark:[&_pre]:bg-neutral-950 [&_pre]:rounded-lg [&_pre]:p-3 [&_pre]:overflow-x-auto [&_code]:text-[13px] selection:bg-amber-200/60 dark:selection:bg-amber-400/30"
-        >
-          <ReactMarkdown remarkPlugins={[remarkGfm]}>{message.content}</ReactMarkdown>
-        </div>
+        {showTabs && (
+          <LanguageTabs
+            active={activeLanguage}
+            onSelect={(language) => handleSelectLanguage(language)}
+            disabled={loadingLanguage !== null}
+          />
+        )}
+
+        {activeLanguage === "en" ? (
+          <div
+            ref={contentRef}
+            onMouseUp={handleMouseUp}
+            className="prose prose-sm dark:prose-invert prose-neutral max-w-none break-words text-neutral-800 dark:text-neutral-200 leading-relaxed [&_pre]:bg-neutral-900 [&_pre]:text-neutral-50 dark:[&_pre]:bg-neutral-950 [&_pre]:rounded-lg [&_pre]:p-3 [&_pre]:overflow-x-auto [&_code]:text-[13px] selection:bg-amber-200/60 dark:selection:bg-amber-400/30"
+          >
+            <ReactMarkdown remarkPlugins={[remarkGfm]}>{message.content}</ReactMarkdown>
+          </div>
+        ) : (
+          <div>
+            {loadingLanguage || !shownTranslation ? (
+              <TranslationSkeleton />
+            ) : (
+              <TranslationBody text={shownTranslation.text} language={activeLanguage} />
+            )}
+            {shownTranslation?.fidelity_warning && !loadingLanguage && (
+              <p className="mt-2 text-xs text-amber-700 dark:text-amber-400">
+                This translation may differ slightly from the document. Check the English answer and sources.
+              </p>
+            )}
+            <button
+              onClick={handleToggleSimplify}
+              disabled={loadingLanguage !== null}
+              aria-pressed={explainMode === "simplify"}
+              className={`mt-2 text-xs rounded-full border px-2.5 py-0.5 transition-colors disabled:opacity-60 ${
+                explainMode === "simplify"
+                  ? "border-neutral-900 dark:border-neutral-100 text-neutral-900 dark:text-neutral-100"
+                  : "border-neutral-200 dark:border-neutral-700 text-neutral-500 dark:text-neutral-400 hover:text-neutral-800 dark:hover:text-neutral-200"
+              }`}
+              title="Explain it in simpler words"
+            >
+              Simplify
+            </button>
+          </div>
+        )}
 
         <div className="flex items-center gap-3 mt-1.5 text-neutral-400 dark:text-neutral-500">
-          <ListenButton text={stripMarkdown(message.content)} messageId={message.id} />
+          {activeLanguage === "en" && <ListenButton text={stripMarkdown(message.content)} messageId={message.id} />}
+          {activeLanguage === "ur" && shownTranslation && (
+            <UrduSpeakButton text={stripMarkdown(shownTranslation.text)} messageId={message.id} />
+          )}
+          {/* Roman Urdu has no Listen button: an English voice would mispronounce it. */}
           <button
             onClick={handleCopy}
             className="text-xs hover:text-neutral-700 dark:hover:text-neutral-300 transition-colors inline-flex items-center gap-1"
@@ -292,6 +393,38 @@ export default function ChatBubble({
             {copied ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
             {copied ? "Copied" : "Copy"}
           </button>
+          {chatId && (
+            <>
+              <button
+                onClick={() => handleSelectLanguage("ur")}
+                disabled={loadingLanguage !== null}
+                className={`text-xs transition-colors inline-flex items-center gap-1 disabled:opacity-60 ${
+                  activeLanguage === "ur"
+                    ? "text-neutral-900 dark:text-neutral-100 font-medium"
+                    : "hover:text-neutral-700 dark:hover:text-neutral-300"
+                }`}
+                aria-label="Explain in Urdu"
+                title="Explain this answer in Urdu"
+              >
+                {loadingLanguage === "ur" && <Loader2 className="h-3 w-3 animate-spin" />}
+                {LANGUAGE_LABELS.ur}
+              </button>
+              <button
+                onClick={() => handleSelectLanguage("roman_ur")}
+                disabled={loadingLanguage !== null}
+                className={`text-xs transition-colors inline-flex items-center gap-1 disabled:opacity-60 ${
+                  activeLanguage === "roman_ur"
+                    ? "text-neutral-900 dark:text-neutral-100 font-medium"
+                    : "hover:text-neutral-700 dark:hover:text-neutral-300"
+                }`}
+                aria-label="Explain in Roman Urdu"
+                title="Explain this answer in Roman Urdu (Urdu in English letters)"
+              >
+                {loadingLanguage === "roman_ur" && <Loader2 className="h-3 w-3 animate-spin" />}
+                Roman
+              </button>
+            </>
+          )}
           {onRegenerate && (
             <button
               onClick={onRegenerate}
@@ -327,6 +460,16 @@ export default function ChatBubble({
             </button>
           )}
         </div>
+
+        {pendingLanguage && !loadingLanguage && (
+          <p className="mt-1.5 text-xs text-neutral-400 dark:text-neutral-500 inline-flex items-center gap-1.5">
+            <Loader2 className="h-3 w-3 animate-spin" />
+            Preparing {LANGUAGE_LABELS[pendingLanguage]} explanation…
+          </p>
+        )}
+        {(explainError || translationNotice) && (
+          <p className="mt-1.5 text-xs text-amber-700 dark:text-amber-400">{explainError || translationNotice}</p>
+        )}
 
         <AnimatePresence>
           {sourcesOpen && citations.length > 0 && (

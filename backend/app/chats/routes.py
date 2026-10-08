@@ -367,7 +367,7 @@ async def send_message(
                 yield f"event: translation\ndata: {json.dumps(payload_out)}\n\n"
             except HTTPException as exc:
                 # Quota exhausted (429): skip quietly, the English answer is already delivered.
-                yield f"event: quota_reached\ndata: {json.dumps({'detail': exc.detail})}\n\n"
+                yield f"event: quota_reached\ndata: {json.dumps({'detail': exc.detail, 'message_id': str(assistant_message.id)})}\n\n"
             except Exception:
                 logger.exception("Auto language explanation failed for message %s", assistant_message.id)
                 yield f"event: translation_error\ndata: {json.dumps({'message_id': str(assistant_message.id)})}\n\n"

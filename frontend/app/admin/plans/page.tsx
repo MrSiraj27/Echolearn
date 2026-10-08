@@ -14,6 +14,7 @@ interface PlanLimits {
   quiz_generations_per_month: number | null;
   tts_uses_per_day: number | null;
   diagrams_infographics_per_month: number | null;
+  language_explanations_per_day: number | null;
   max_storage_mb: number | null;
   priority_processing: boolean;
 }
@@ -39,6 +40,7 @@ const LIMIT_ROWS: { key: keyof PlanLimits; label: string; type: "number" | "bool
   { key: "quiz_generations_per_month", label: "Quiz generations / month", type: "number" },
   { key: "tts_uses_per_day", label: "TTS uses / day", type: "number" },
   { key: "diagrams_infographics_per_month", label: "Diagrams & infographics / month", type: "number" },
+  { key: "language_explanations_per_day", label: "Urdu / Roman Urdu explanations / day", type: "number" },
   { key: "max_storage_mb", label: "Max storage (MB)", type: "number" },
   { key: "priority_processing", label: "Priority processing", type: "bool" },
 ];

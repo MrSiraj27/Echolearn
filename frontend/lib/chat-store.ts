@@ -1,6 +1,44 @@
 import { create } from "zustand";
-import { ChatItem, ChatMessage, DocumentItem, Folder, Workspace } from "./types";
+import {
+  AppLanguage,
+  ChatItem,
+  ChatMessage,
+  DocumentItem,
+  ExplainLanguage,
+  ExplainMode,
+  Folder,
+  MessageTranslation,
+  Workspace,
+} from "./types";
 import { api } from "./api";
+
+const LANGUAGE_TAB_STORAGE_KEY = "echolearn_language_tabs";
+
+// The tab (English / Urdu / Roman Urdu) the user last picked in each chat, remembered across
+// reloads. localStorage can be unavailable (private mode), so every access is guarded.
+function loadLanguageTabs(): Record<string, AppLanguage> {
+  try {
+    return JSON.parse(localStorage.getItem(LANGUAGE_TAB_STORAGE_KEY) || "{}");
+  } catch {
+    return {};
+  }
+}
+
+function saveLanguageTabs(tabs: Record<string, AppLanguage>) {
+  try {
+    localStorage.setItem(LANGUAGE_TAB_STORAGE_KEY, JSON.stringify(tabs));
+  } catch {
+    // ignore
+  }
+}
+
+// Adds/replaces one translation on a message (a message has at most one per language+mode).
+function withTranslation(message: ChatMessage, translation: MessageTranslation): ChatMessage {
+  const others = (message.translations || []).filter(
+    (t) => !(t.language === translation.language && t.mode === translation.mode)
+  );
+  return { ...message, translations: [...others, translation] };
+}
 
 interface ChatState {
   chats: ChatItem[];
@@ -11,6 +49,23 @@ interface ChatState {
   messages: ChatMessage[];
   isStreaming: boolean;
   streamingContent: string;
+
+  // Urdu / Roman Urdu explanations
+  preferredLanguage: AppLanguage;
+  languageTabByChat: Record<string, AppLanguage>;
+  // messageId -> language being auto-generated right now (shows a "preparing" hint)
+  pendingTranslations: Record<string, ExplainLanguage>;
+  // messageId -> why an explanation couldn't be produced (e.g. daily quota reached)
+  translationNotices: Record<string, string>;
+  loadPreferences: () => Promise<void>;
+  setPreferredLanguage: (language: AppLanguage) => Promise<void>;
+  setLanguageTab: (chatId: string, language: AppLanguage) => void;
+  explainMessage: (
+    chatId: string,
+    messageId: string,
+    language: ExplainLanguage,
+    mode?: ExplainMode
+  ) => Promise<MessageTranslation>;
 
   loadChats: () => Promise<void>;
   loadDocuments: () => Promise<void>;
@@ -50,6 +105,51 @@ export const useChatStore = create<ChatState>((set, get) => ({
   messages: [],
   isStreaming: false,
   streamingContent: "",
+
+  preferredLanguage: "en",
+  languageTabByChat: {},
+  pendingTranslations: {},
+  translationNotices: {},
+
+  loadPreferences: async () => {
+    const usage = await api.get<{ preferred_language?: AppLanguage }>("/users/me/usage", { auth: true });
+    set({ preferredLanguage: usage.preferred_language || "en", languageTabByChat: loadLanguageTabs() });
+  },
+
+  setPreferredLanguage: async (language: AppLanguage) => {
+    const previous = get().preferredLanguage;
+    set({ preferredLanguage: language }); // optimistic; rolled back below if the save fails
+    try {
+      await api.patch("/users/me/preferences", { preferred_language: language }, { auth: true });
+    } catch (err) {
+      set({ preferredLanguage: previous });
+      throw err;
+    }
+  },
+
+  setLanguageTab: (chatId: string, language: AppLanguage) => {
+    const tabs = { ...get().languageTabByChat, [chatId]: language };
+    saveLanguageTabs(tabs);
+    set({ languageTabByChat: tabs });
+  },
+
+  explainMessage: async (chatId, messageId, language, mode = "translate") => {
+    const result = await api.post<{ text: string; fidelity_warning: boolean }>(
+      `/chats/${chatId}/messages/${messageId}/explain`,
+      { language, mode },
+      { auth: true }
+    );
+    const translation: MessageTranslation = {
+      language,
+      mode,
+      text: result.text,
+      fidelity_warning: result.fidelity_warning,
+    };
+    set((state) => ({
+      messages: state.messages.map((m) => (m.id === messageId ? withTranslation(m, translation) : m)),
+    }));
+    return translation;
+  },
 
   loadChats: async () => {
     const chats = await api.get<ChatItem[]>("/chats/", { auth: true });
@@ -193,9 +293,44 @@ export const useChatStore = create<ChatState>((set, get) => ({
     const decoder = new TextDecoder();
     let buffer = "";
     let accumulated = "";
-    let citations = null;
-    let followUps: string[] = [];
-    let serverMessageId: string | null = null;
+    let finalized = false;
+
+    // The English answer is shown the moment the server says it is complete, NOT when the
+    // stream closes: with auto-explain on, the stream stays open a few seconds longer for the
+    // Urdu/Roman Urdu text, and that must never hold up the English answer.
+    const finalizeAnswer = (
+      serverMessageId: string | null,
+      citations: ChatMessage["citations"],
+      followUps: string[]
+    ) => {
+      finalized = true;
+      const assistantMessage: ChatMessage = {
+        id: serverMessageId || `assistant-${Date.now()}`,
+        role: "assistant",
+        content: accumulated,
+        citations,
+        created_at: new Date().toISOString(),
+        followUps,
+      };
+      const preferred = get().preferredLanguage;
+      set((state) => ({
+        messages: [...state.messages, assistantMessage],
+        isStreaming: false,
+        streamingContent: "",
+        pendingTranslations:
+          preferred !== "en" && serverMessageId
+            ? { ...state.pendingTranslations, [serverMessageId]: preferred }
+            : state.pendingTranslations,
+      }));
+      get().loadChats();
+    };
+
+    const clearPending = (messageId: string) =>
+      set((state) => {
+        const rest = { ...state.pendingTranslations };
+        delete rest[messageId];
+        return { pendingTranslations: rest };
+      });
 
     while (true) {
       const { done, value } = await reader.read();
@@ -221,9 +356,35 @@ export const useChatStore = create<ChatState>((set, get) => ({
             accumulated += parsed.content;
             set({ streamingContent: accumulated });
           } else if (eventType === "done") {
-            citations = parsed.citations;
-            followUps = parsed.follow_ups || [];
-            if (parsed.message_id) serverMessageId = parsed.message_id;
+            finalizeAnswer(parsed.message_id || null, parsed.citations, parsed.follow_ups || []);
+          } else if (eventType === "translation") {
+            const translation: MessageTranslation = {
+              language: parsed.language,
+              mode: parsed.mode,
+              text: parsed.text,
+              fidelity_warning: !!parsed.fidelity_warning,
+            };
+            clearPending(parsed.message_id);
+            // Show the user's preferred language as soon as it arrives.
+            const tabs = { ...get().languageTabByChat, [chatId]: translation.language as AppLanguage };
+            saveLanguageTabs(tabs);
+            set((state) => ({
+              languageTabByChat: tabs,
+              messages: state.messages.map((m) => (m.id === parsed.message_id ? withTranslation(m, translation) : m)),
+            }));
+          } else if (eventType === "quota_reached") {
+            clearPending(parsed.message_id);
+            set((state) => ({
+              translationNotices: { ...state.translationNotices, [parsed.message_id]: parsed.detail },
+            }));
+          } else if (eventType === "translation_error") {
+            clearPending(parsed.message_id);
+            set((state) => ({
+              translationNotices: {
+                ...state.translationNotices,
+                [parsed.message_id]: "Couldn't prepare the explanation. Use the language buttons to try again.",
+              },
+            }));
           }
         } catch {
           // ignore malformed SSE chunk
@@ -231,22 +392,8 @@ export const useChatStore = create<ChatState>((set, get) => ({
       }
     }
 
-    const assistantMessage: ChatMessage = {
-      id: serverMessageId || `assistant-${Date.now()}`,
-      role: "assistant",
-      content: accumulated,
-      citations,
-      created_at: new Date().toISOString(),
-      followUps,
-    };
-
-    set((state) => ({
-      messages: [...state.messages, assistantMessage],
-      isStreaming: false,
-      streamingContent: "",
-    }));
-
-    get().loadChats();
+    // Safety net: the stream ended without a "done" event (e.g. the connection dropped).
+    if (!finalized) finalizeAnswer(null, null, []);
   },
 
   deleteChat: async (chatId: string) => {

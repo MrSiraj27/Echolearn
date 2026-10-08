@@ -223,6 +223,7 @@ export default function Sidebar({ activeChatId }: { activeChatId?: string }) {
     deleteDocument,
     pollDocumentStatus,
     addDocumentFromUrl,
+    loadPreferences,
   } = useChatStore();
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
@@ -266,7 +267,8 @@ export default function Sidebar({ activeChatId }: { activeChatId?: string }) {
     loadDocuments();
     loadFolders();
     loadWorkspaces();
-  }, [loadChats, loadDocuments, loadFolders, loadWorkspaces]);
+    loadPreferences().catch(() => {});
+  }, [loadChats, loadDocuments, loadFolders, loadWorkspaces, loadPreferences]);
 
   async function handleFiles(files: FileList | null) {
     if (!files || files.length === 0) return;

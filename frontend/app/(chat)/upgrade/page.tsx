@@ -16,6 +16,7 @@ interface PlanLimits {
   quiz_generations_per_month: number | null;
   tts_uses_per_day: number | null;
   diagrams_infographics_per_month: number | null;
+  language_explanations_per_day?: number | null;
   max_storage_mb: number | null;
   priority_processing: boolean;
 }
@@ -112,6 +113,10 @@ export default function UpgradePage() {
                     <li className="flex items-start gap-2 text-xs text-neutral-600 dark:text-neutral-400">
                       <Check className="h-3.5 w-3.5 text-neutral-400 shrink-0 mt-0.5" />
                       {formatLimit(plan.limits.diagrams_infographics_per_month, "diagrams/infographics / month")}
+                    </li>
+                    <li className="flex items-start gap-2 text-xs text-neutral-600 dark:text-neutral-400">
+                      <Check className="h-3.5 w-3.5 text-neutral-400 shrink-0 mt-0.5" />
+                      {formatLimit(plan.limits.language_explanations_per_day ?? null, "Urdu explanations / day")}
                     </li>
                     <li className="flex items-start gap-2 text-xs text-neutral-600 dark:text-neutral-400">
                       <Check className="h-3.5 w-3.5 text-neutral-400 shrink-0 mt-0.5" />

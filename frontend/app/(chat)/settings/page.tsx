@@ -7,7 +7,8 @@ import Sidebar from "@/components/Sidebar";
 import { clearClonedAudioCache } from "@/components/ListenButton";
 import { api, ApiError } from "@/lib/api";
 import { useSpeech } from "@/lib/speech-context";
-import { ReviewSettingsResponse } from "@/lib/types";
+import { useChatStore } from "@/lib/chat-store";
+import { AppLanguage, ReviewSettingsResponse } from "@/lib/types";
 import { blobToWav } from "@/lib/wav";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
@@ -34,6 +35,11 @@ export default function SettingsPage() {
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [cloneAvailable, setCloneAvailable] = useState(true);
   const [pregenerate, setPregenerate] = useState(false);
+
+  const preferredLanguage = useChatStore((s) => s.preferredLanguage);
+  const loadPreferences = useChatStore((s) => s.loadPreferences);
+  const setPreferredLanguage = useChatStore((s) => s.setPreferredLanguage);
+  const [languageError, setLanguageError] = useState<string | null>(null);
 
   const [dailyCap, setDailyCap] = useState<number | null>(null);
   const [dailyCapInput, setDailyCapInput] = useState("");
@@ -114,6 +120,20 @@ export default function SettingsPage() {
     }
   }
 
+  useEffect(() => {
+    loadPreferences().catch(() => {});
+  }, [loadPreferences]);
+
+  async function chooseLanguage(language: AppLanguage) {
+    setLanguageError(null);
+    try {
+      await setPreferredLanguage(language);
+    } catch {
+      setLanguageError("Couldn't save that setting. Please try again.");
+    }
+  }
+
+  const languageQuota = usage?.quotas.find((q) => q.key === "language_explanations_per_day");
   const cloneQuota = usage?.quotas.find((q) => q.key === "voice_clone_uses_per_day");
   const cloningLocked = cloneQuota ? cloneQuota.limit === 0 : false;
 
@@ -405,6 +425,43 @@ export default function SettingsPage() {
                 )}
               </div>
             )}
+          </section>
+
+          <section className="rounded-2xl border border-neutral-200 dark:border-neutral-800 p-6 mt-6">
+            <h2 className="text-sm font-semibold text-neutral-900 dark:text-neutral-100 mb-1">Preferred language</h2>
+            <p className="text-xs text-neutral-500 dark:text-neutral-400 mb-4">
+              Get each new answer explained in Urdu or Roman Urdu automatically, right after the English answer.
+              You can still switch any answer between languages with the buttons under it.
+            </p>
+            <div className="inline-flex rounded-lg bg-neutral-100 dark:bg-neutral-800 p-0.5">
+              {(
+                [
+                  ["en", "English"],
+                  ["ur", "اردو"],
+                  ["roman_ur", "Roman Urdu"],
+                ] as [AppLanguage, string][]
+              ).map(([value, label]) => (
+                <button
+                  key={value}
+                  onClick={() => chooseLanguage(value)}
+                  aria-pressed={preferredLanguage === value}
+                  className={`text-xs px-3 py-1.5 rounded-md transition-colors ${
+                    preferredLanguage === value
+                      ? "bg-white dark:bg-neutral-700 text-neutral-900 dark:text-neutral-100 shadow-sm font-medium"
+                      : "text-neutral-500 dark:text-neutral-400 hover:text-neutral-800 dark:hover:text-neutral-200"
+                  }`}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+            {languageQuota && languageQuota.limit !== null && (
+              <p className="text-xs text-neutral-400 mt-3">
+                {languageQuota.current_usage} of {String(languageQuota.limit)} explanations used today
+                {languageQuota.resets_in_human ? ` · resets in ${languageQuota.resets_in_human}` : ""}
+              </p>
+            )}
+            {languageError && <p className="text-xs text-red-600 dark:text-red-400 mt-2">{languageError}</p>}
           </section>
 
           <section className="rounded-2xl border border-neutral-200 dark:border-neutral-800 p-6 mt-6">
