@@ -1,4 +1,5 @@
 import json
+import logging
 import re
 import threading
 import uuid
@@ -22,6 +23,7 @@ from app.chats.schemas import (
     InfographicResponse,
     MessageResponse,
     SendMessageRequest,
+    TranslationItem,
 )
 from app.core.database import get_db
 from app.core.security import block_if_impersonating, get_current_user
@@ -32,12 +34,16 @@ from app.models import (
     DocumentStatus,
     Message,
     MessageRole,
+    MessageTranslation,
     QueryLog,
     User,
     Workspace,
     WorkspaceDocument,
 )
 from app.admin.config_service import is_feature_enabled
+from app.chats.translation_service import explain_with_cache
+from app.core.languages import EXPLAIN_TARGETS, ExplainMode, Language
+from fastapi.concurrency import run_in_threadpool
 from app.core.usage import check_and_record_usage
 from app.rag.diagram import generate_diagram
 from app.rag.infographic_generator import VALID_TEMPLATES, extract_infographic_data
@@ -46,6 +52,16 @@ from app.rag.smalltalk import detect_smalltalk_reply
 from app.rag.vectorstore import search, search_multi_document
 
 router = APIRouter(prefix="/chats", tags=["chats"])
+logger = logging.getLogger(__name__)
+
+
+def _preferred_explain_language(user: User) -> Language | None:
+    """The user's auto-explain language, or None when it is English / unset / unknown."""
+    try:
+        language = Language(user.preferred_language or "en")
+    except ValueError:
+        return None
+    return language if language in EXPLAIN_TARGETS else None
 
 
 def _get_owned_chat(db: Session, chat_id: uuid.UUID, user_id: uuid.UUID) -> Chat:
@@ -212,7 +228,32 @@ def get_chat_messages(
     messages = (
         db.query(Message).filter(Message.chat_id == chat_id).order_by(Message.created_at.asc()).all()
     )
-    return messages
+
+    # Attach any Urdu / Roman Urdu renderings already generated, in one query.
+    translations_by_message: dict[uuid.UUID, list[TranslationItem]] = {}
+    if messages:
+        rows = (
+            db.query(MessageTranslation)
+            .filter(MessageTranslation.message_id.in_([m.id for m in messages]))
+            .order_by(MessageTranslation.created_at.asc())
+            .all()
+        )
+        for row in rows:
+            translations_by_message.setdefault(row.message_id, []).append(
+                TranslationItem(
+                    language=row.language,
+                    mode=row.mode,
+                    text=row.text,
+                    fidelity_warning=row.fidelity_warning,
+                )
+            )
+
+    response = []
+    for m in messages:
+        item = MessageResponse.model_validate(m)
+        item.translations = translations_by_message.get(m.id, [])
+        response.append(item)
+    return response
 
 
 @router.post("/{chat_id}/message")
@@ -307,6 +348,29 @@ async def send_message(
             )
             + "\n\n"
         )
+
+        # Auto-explain in the user's preferred language. This runs AFTER the English answer
+        # and its "done" event have been sent, so it can never delay the English response.
+        preferred = _preferred_explain_language(current_user)
+        if preferred and smalltalk_reply is None and not skip_log and full_answer.strip():
+            try:
+                translation, _cached = await run_in_threadpool(
+                    explain_with_cache, db, current_user, assistant_message, preferred, ExplainMode.translate
+                )
+                payload_out = {
+                    "message_id": str(assistant_message.id),
+                    "language": preferred.value,
+                    "mode": ExplainMode.translate.value,
+                    "text": translation.text,
+                    "fidelity_warning": translation.fidelity_warning,
+                }
+                yield f"event: translation\ndata: {json.dumps(payload_out)}\n\n"
+            except HTTPException as exc:
+                # Quota exhausted (429): skip quietly, the English answer is already delivered.
+                yield f"event: quota_reached\ndata: {json.dumps({'detail': exc.detail})}\n\n"
+            except Exception:
+                logger.exception("Auto language explanation failed for message %s", assistant_message.id)
+                yield f"event: translation_error\ndata: {json.dumps({'message_id': str(assistant_message.id)})}\n\n"
 
     return StreamingResponse(event_stream(), media_type="text/event-stream")
 

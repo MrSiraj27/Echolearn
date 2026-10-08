@@ -3,6 +3,7 @@ from datetime import datetime
 
 from pydantic import BaseModel
 
+from app.core.languages import ExplainMode, Language
 from app.models.message import MessageRole
 
 
@@ -34,6 +35,16 @@ class ChatListItem(BaseModel):
     preview: str | None = None
 
 
+class TranslationItem(BaseModel):
+    """An already-generated Urdu/Roman Urdu rendering of a message, so the UI can show it
+    instantly without another request."""
+
+    language: Language
+    mode: ExplainMode
+    text: str
+    fidelity_warning: bool = False
+
+
 class MessageResponse(BaseModel):
     id: uuid.UUID
     role: MessageRole
@@ -41,6 +52,7 @@ class MessageResponse(BaseModel):
     citations: list[dict] | None = None
     content_type: str = "text"
     created_at: datetime
+    translations: list[TranslationItem] = []
 
     model_config = {"from_attributes": True}
 
@@ -68,6 +80,19 @@ class InfographicResponse(BaseModel):
 
 class SendMessageRequest(BaseModel):
     content: str
+
+
+class ExplainMessageRequest(BaseModel):
+    language: Language
+    mode: ExplainMode = ExplainMode.translate
+
+
+class ExplainMessageResponse(BaseModel):
+    text: str
+    language: Language
+    mode: ExplainMode
+    fidelity_warning: bool = False
+    cached: bool = False
 
 
 class ExplainRequest(BaseModel):

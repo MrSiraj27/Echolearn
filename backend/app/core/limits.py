@@ -15,6 +15,7 @@ LIMITS_SCHEMA_DEFAULTS: dict = {
     "tts_uses_per_day": None,
     "diagrams_infographics_per_month": None,
     "voice_clone_uses_per_day": 0,
+    "language_explanations_per_day": None,
     "max_storage_mb": None,
     "priority_processing": False,
 }

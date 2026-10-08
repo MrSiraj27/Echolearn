@@ -44,6 +44,9 @@ class User(Base):
     # Opt-in: clone each new assistant reply in the background so Listen is instant.
     voice_pregenerate: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False, server_default=text("false"))
 
+    # Language new answers are auto-explained in ("en" = off). One of app.core.languages.Language.
+    preferred_language: Mapped[str] = mapped_column(String, nullable=False, default="en", server_default=text("'en'"))
+
     # Daily Review (Prompt 30). Null means "use the app default" (see
     # app.study.spaced_repetition.DEFAULT_DAILY_CARD_CAP) rather than baking the default
     # in at write time, so lowering the app-wide default later doesn't require a backfill.

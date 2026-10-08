@@ -25,6 +25,11 @@ _EVENT_CONFIG: dict[str, dict] = {
         "window_days": 1,
         "label": "voice clone generation",
     },
+    "language_explain": {
+        "limit_key": "language_explanations_per_day",
+        "window_days": 1,
+        "label": "Urdu/Roman Urdu explanation",
+    },
 }
 
 
@@ -157,6 +162,7 @@ ROLLING_QUOTA_LABELS = {
     "tts_use": "Text-to-speech uses",
     "diagram_infographic": "Diagrams & infographics",
     "voice_clone_use": "Voice clone generations",
+    "language_explain": "Urdu / Roman Urdu explanations",
 }
 
 

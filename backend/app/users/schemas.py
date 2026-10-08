@@ -2,6 +2,8 @@ import uuid
 
 from pydantic import BaseModel
 
+from app.core.languages import Language
+
 from app.admin.plans_schemas import PlanLimits
 
 
@@ -31,3 +33,12 @@ class MyUsageResponse(BaseModel):
     quotas: list[QuotaUsageItem]
     has_voice_sample: bool = False
     has_pending_reviews: bool = False
+    preferred_language: Language = Language.en
+
+
+class UpdatePreferencesRequest(BaseModel):
+    preferred_language: Language
+
+
+class PreferencesResponse(BaseModel):
+    preferred_language: Language

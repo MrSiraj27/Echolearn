@@ -7,7 +7,13 @@ from app.core.security import get_current_user
 from app.core.usage import rolling_quota_usage
 from app.models import Document, Plan, User, Workspace
 from app.study.review_routes import has_pending_reviews
-from app.users.schemas import MyUsageResponse, PublicPlan, QuotaUsageItem
+from app.users.schemas import (
+    MyUsageResponse,
+    PreferencesResponse,
+    PublicPlan,
+    QuotaUsageItem,
+    UpdatePreferencesRequest,
+)
 
 router = APIRouter(prefix="/users", tags=["users"])
 
@@ -42,4 +48,17 @@ def get_my_usage(current_user: User = Depends(get_current_user), db: Session = D
         quotas=quotas,
         has_voice_sample=bool(current_user.cloned_voice_sample_hash),
         has_pending_reviews=has_pending_reviews(db, current_user),
+        preferred_language=current_user.preferred_language or "en",
     )
+
+
+@router.patch("/me/preferences", response_model=PreferencesResponse)
+def update_my_preferences(
+    payload: UpdatePreferencesRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Currently just the language new answers are auto-explained in."""
+    current_user.preferred_language = payload.preferred_language.value
+    db.commit()
+    return PreferencesResponse(preferred_language=payload.preferred_language)

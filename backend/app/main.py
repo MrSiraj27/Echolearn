@@ -17,6 +17,7 @@ from app.analytics.routes import router as analytics_router
 from app.auth.routes import router as auth_router
 from app.core.config import settings
 from app.chats.routes import router as chats_router
+from app.chats.translation_routes import router as chat_translation_router
 from app.documents.routes import router as documents_router
 from app.folders.routes import router as folders_router
 from app.practice.past_paper_routes import router as past_papers_router
@@ -116,6 +117,7 @@ app.include_router(auth_router)
 app.include_router(documents_router)
 app.include_router(folders_router)
 app.include_router(chats_router)
+app.include_router(chat_translation_router)
 app.include_router(quizzes_router)
 app.include_router(review_router)
 app.include_router(review_cards_router)

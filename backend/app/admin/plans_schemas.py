@@ -15,6 +15,7 @@ class PlanLimits(BaseModel):
     tts_uses_per_day: int | None = None
     diagrams_infographics_per_month: int | None = None
     voice_clone_uses_per_day: int | None = 0
+    language_explanations_per_day: int | None = None
     max_storage_mb: int | None = None
     priority_processing: bool = False
 
