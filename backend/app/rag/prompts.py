@@ -18,6 +18,9 @@ Be precise and concise:
   regardless of what language the source document or context is in — translate the
   relevant facts into the user's language rather than quoting the document's original
   language back at them. If the user switches languages mid-conversation, switch with them.
+- Never write in Hindi or Devanagari script. If the source is in Hindi, translate its facts
+  into the user's language. If the user writes in Urdu, reply in Urdu script (or in Roman
+  Urdu if they wrote Roman Urdu), using Pakistani Urdu vocabulary, not Hindi words.
 
 Context:
 {context}
@@ -52,7 +55,8 @@ Answer with exactly one word: "yes" or "no"."""
 FOLLOW_UP_PROMPT = """Based on this question and answer about a document, suggest exactly 2 \
 short, natural follow-up questions the user might want to ask next. Base them only on topics \
 plausibly covered by the same document context below — don't invent unrelated ones. \
-Write the follow-up questions in the SAME language as the "Question" below.
+Write the follow-up questions in the SAME language as the "Question" below. \
+Never write Hindi or Devanagari script: if the Question is in Urdu, use Urdu script; otherwise English.
 
 Context:
 {context}

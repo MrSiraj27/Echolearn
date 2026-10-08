@@ -14,7 +14,7 @@ import re
 import uuid
 from dataclasses import dataclass
 
-from app.core.languages import LANGUAGE_LABELS, ExplainMode, Language
+from app.core.languages import LANGUAGE_LABELS, ExplainMode, Language, contains_devanagari
 from app.models import Message
 from app.rag.llm import chat_completion
 
@@ -40,6 +40,8 @@ Rules for ALL languages:
 - Keep technical terms, formulas, symbols, code, units and proper nouns in English. The first time a term appears you may add a short gloss in brackets. Add a gloss only when it genuinely helps, and never repeat the same word in the brackets.
 - Keep the same structure: lists stay lists, headings stay headings, bold stays bold.
 - Use simple, natural, conversational Urdu a university student would use, not formal literary Urdu.
+- Write PAKISTANI Urdu, never Hindi. Use the everyday vocabulary used in Pakistan (words of Persian, Arabic and English origin), not Sanskrit-derived Hindi words. For example: maali (not aarthik), kitaab (not pustak), sawal (not prashn), jawab (not uttar), istemaal (not upyog), sarmaya-kari (not nivesh), maloomat (not jankari), zaroori (not avashyak), masla (not samasya).
+- If the ANSWER or SOURCE CONTEXT is in Hindi or contains Devanagari letters, translate it into Urdu. Never copy Hindi words, and never output Devanagari letters.
 - If the ANSWER says the information was not found in the document, say that in the target language and add nothing else.
 - Output only the rewritten answer, with no preface or commentary."""
 
@@ -87,10 +89,31 @@ _LATIN_LETTER_RE = re.compile("[A-Za-z]")
 MIN_URDU_SCRIPT_SHARE = 0.5
 
 
+# Common Hindi words (Sanskrit-derived) that Pakistani Urdu does not use. A Roman Urdu answer
+# containing them has drifted into Hindi, which this app must never show.
+_HINDI_WORDS = frozenset(
+    """aarthik arthik pustak saksharta vishay upyog prashn uttar dhanyavad dhanyawad kripya bhasha
+    sanstha vyavastha vikas sampatti nivesh jankari bharat mahatvapurn mahatvapoorn samasya samadhan
+    mukhya avashyak aavashyak vyakti kintu parantu tatha evam athva adhyay udaharan parinam vishesh
+    suchi sambandh sahayata upyogi uddeshya yojana vyapar vyavsay""".split()
+)
+
+
+def _hindi_words_in(text: str) -> list[str]:
+    words = re.findall(r"[a-zA-Z']+", text.lower())
+    return sorted({w for w in words if w in _HINDI_WORDS})
+
+
 def _script_problem(language: Language, text: str) -> str | None:
     """None if `text` uses the right script for `language`, else a short description of
     what is wrong (fed back to the model on retry). The model sometimes answers in the
-    wrong script, e.g. Roman Urdu when asked for Urdu script."""
+    wrong script, e.g. Roman Urdu when asked for Urdu script, or drifts into Hindi."""
+    if contains_devanagari(text):
+        return "the answer contains Hindi (Devanagari) letters; it must be Pakistani Urdu only"
+    if language == Language.roman_ur:
+        hindi = _hindi_words_in(text)
+        if hindi:
+            return f"the answer uses Hindi words ({', '.join(hindi[:6])}); use everyday Pakistani Urdu words instead"
     arabic = len(_ARABIC_SCRIPT_RE.findall(text))
     latin = len(_LATIN_LETTER_RE.findall(text))
     if language == Language.ur:

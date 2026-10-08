@@ -2,6 +2,7 @@ import json
 import logging
 import uuid
 
+from app.core.languages import contains_devanagari
 from app.rag.llm import chat_completion
 from app.rag.vectorstore import get_all_chunks
 
@@ -13,6 +14,9 @@ MAX_SAMPLE_CHUNKS = 10
 SUMMARY_PROMPT = """Here are excerpts from a document (sampled across its length):
 
 {excerpts}
+
+Write in ENGLISH, even if the document is in another language. Never write Hindi or \
+Devanagari script. (Only if the document is entirely in Urdu, write in Urdu script.)
 
 Summarize this document in 3-5 sentences, then generate exactly 5 example questions a \
 reader might ask about it. If the document is very short, generate as many sensible, \
@@ -47,6 +51,10 @@ def _parse_summary_response(raw: str) -> dict | None:
     summary = data.get("summary")
     questions = data.get("suggested_questions")
     if not isinstance(summary, str) or not isinstance(questions, list):
+        return None
+
+    # Hindi must never reach students; reject (so the caller retries) rather than store it.
+    if contains_devanagari(summary) or any(contains_devanagari(str(q)) for q in questions):
         return None
 
     return {

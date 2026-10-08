@@ -7,6 +7,7 @@ from typing import TypedDict
 from langgraph.graph import StateGraph, END
 
 from app.admin.api_logging import log_api_call
+from app.core.languages import contains_devanagari
 from app.rag.llm import chat_completion, get_groq_client
 from app.rag.prompts import (
     FOLLOW_UP_PROMPT,
@@ -195,7 +196,9 @@ def generate_follow_ups(question: str, answer: str, chunks: list[dict]) -> list[
         cleaned = raw.strip().removeprefix("```json").removeprefix("```").removesuffix("```").strip()
         suggestions = json.loads(cleaned)
         if isinstance(suggestions, list):
-            return [str(s).strip() for s in suggestions if str(s).strip()][:2]
+            return [
+                str(s).strip() for s in suggestions if str(s).strip() and not contains_devanagari(str(s))
+            ][:2]
     except Exception:
         logger.warning("Follow-up suggestion generation failed", exc_info=True)
 

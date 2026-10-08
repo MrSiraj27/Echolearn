@@ -2,6 +2,15 @@
 routes, the user preference, and the language explainer so the three values can't drift."""
 
 import enum
+import re
+
+# EchoLearn serves Pakistani students: English, Urdu (Urdu script) and Roman Urdu only. Hindi
+# (written in Devanagari) must never be shown, even when a source document is in Hindi.
+DEVANAGARI_RE = re.compile("[ऀ-ॿ꣠-ꣿ]")
+
+
+def contains_devanagari(text: str | None) -> bool:
+    return bool(text) and DEVANAGARI_RE.search(text) is not None
 
 
 class Language(str, enum.Enum):
