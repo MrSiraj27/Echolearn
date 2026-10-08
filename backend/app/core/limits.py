@@ -16,6 +16,9 @@ LIMITS_SCHEMA_DEFAULTS: dict = {
     "diagrams_infographics_per_month": None,
     "voice_clone_uses_per_day": 0,
     "language_explanations_per_day": None,
+    "revision_sheets_per_month": None,
+    "revision_sheet_max_pages": 2,
+    "revision_sheet_advanced": True,
     "max_storage_mb": None,
     "priority_processing": False,
 }

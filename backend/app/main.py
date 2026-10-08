@@ -19,6 +19,7 @@ from app.core.config import settings
 from app.chats.routes import router as chats_router
 from app.chats.translation_routes import router as chat_translation_router
 from app.documents.routes import router as documents_router
+from app.revision.routes import fail_interrupted_sheets, router as revision_sheets_router
 from app.folders.routes import router as folders_router
 from app.practice.past_paper_routes import router as past_papers_router
 from app.practice.paper_routes import router as practice_papers_router
@@ -66,6 +67,7 @@ async def lifespan(app: FastAPI):
     # now loads lazily too, trading a slower first /voice/speak call for headroom.
     load_clone_model()  # only logs whether the isolated cloning worker is installed; it starts lazily
     fail_interrupted_jobs()
+    fail_interrupted_sheets()
     n_docs = fail_interrupted_documents()
     if n_docs:
         logger.warning("Marked %d interrupted document-processing job(s) as failed/ready on startup.", n_docs)
@@ -118,6 +120,7 @@ app.include_router(documents_router)
 app.include_router(folders_router)
 app.include_router(chats_router)
 app.include_router(chat_translation_router)
+app.include_router(revision_sheets_router)
 app.include_router(quizzes_router)
 app.include_router(review_router)
 app.include_router(review_cards_router)

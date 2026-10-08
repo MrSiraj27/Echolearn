@@ -30,6 +30,11 @@ _EVENT_CONFIG: dict[str, dict] = {
         "window_days": 1,
         "label": "Urdu/Roman Urdu explanation",
     },
+    "revision_sheet": {
+        "limit_key": "revision_sheets_per_month",
+        "window_days": 30,
+        "label": "revision sheet",
+    },
 }
 
 
@@ -163,6 +168,7 @@ ROLLING_QUOTA_LABELS = {
     "diagram_infographic": "Diagrams & infographics",
     "voice_clone_use": "Voice clone generations",
     "language_explain": "Urdu / Roman Urdu explanations",
+    "revision_sheet": "Revision sheets",
 }
 
 

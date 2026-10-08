@@ -18,9 +18,9 @@ def get_groq_client() -> Groq:
     return _groq_client
 
 
-def _groq_chat(model: str, messages: list[dict], temperature: float = 0.2) -> str:
+def _groq_chat(model: str, messages: list[dict], temperature: float = 0.2, extra: dict | None = None) -> str:
     client = get_groq_client()
-    response = client.chat.completions.create(model=model, messages=messages, temperature=temperature)
+    response = client.chat.completions.create(model=model, messages=messages, temperature=temperature, **(extra or {}))
     return response.choices[0].message.content or ""
 
 
@@ -47,11 +47,19 @@ def chat_completion(
     temperature: float = 0.2,
     purpose: str = "llm",
     user_id=None,
+    groq_extra: dict | None = None,
 ) -> str:
-    """Call Groq; on failure/rate-limit, retry once with Gemini as a fallback."""
+    """Call Groq; on failure/rate-limit, retry once with Gemini as a fallback.
+
+    `groq_extra` passes extra Groq-only request options, e.g. {"reasoning_effort": "low"} for
+    the gpt-oss reasoning models, which otherwise can spend their whole token budget "thinking"
+    on a large prompt and return an empty answer. (Ignored by the Gemini fallback.)"""
     try:
         with log_api_call("groq", purpose, user_id=user_id):
-            return _groq_chat(model, messages, temperature)
+            reply = _groq_chat(model, messages, temperature, groq_extra)
+            if not reply.strip():
+                raise RuntimeError("Groq returned an empty reply")  # fall through to the fallback
+            return reply
     except Exception:
         logger.warning("Groq call failed, falling back to Gemini", exc_info=True)
         try:

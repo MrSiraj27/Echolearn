@@ -16,6 +16,9 @@ class PlanLimits(BaseModel):
     diagrams_infographics_per_month: int | None = None
     voice_clone_uses_per_day: int | None = 0
     language_explanations_per_day: int | None = None
+    revision_sheets_per_month: int | None = None
+    revision_sheet_max_pages: int | None = 2
+    revision_sheet_advanced: bool = True
     max_storage_mb: int | None = None
     priority_processing: bool = False
 

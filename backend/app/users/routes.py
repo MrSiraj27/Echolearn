@@ -42,6 +42,25 @@ def get_my_usage(current_user: User = Depends(get_current_user), db: Session = D
         )
     )
 
+    # Revision-sheet plan gates that aren't rolling counters (the monthly count is already
+    # in the rolling quotas above): longest sheet allowed, and whether languages/weak spots are on.
+    quotas.append(
+        QuotaUsageItem(
+            key="revision_sheet_max_pages",
+            label="Revision sheet length (pages)",
+            limit=effective.get("revision_sheet_max_pages"),
+            current_usage=0,
+        )
+    )
+    quotas.append(
+        QuotaUsageItem(
+            key="revision_sheet_advanced",
+            label="Revision sheet languages & weak spots",
+            limit=bool(effective.get("revision_sheet_advanced")),
+            current_usage=0,
+        )
+    )
+
     return MyUsageResponse(
         plan_id=current_user.plan_id,
         plan_name=current_user.plan.name if current_user.plan else None,

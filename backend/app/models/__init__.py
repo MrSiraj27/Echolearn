@@ -5,6 +5,7 @@ from app.models.document import Document, DocumentStatus
 from app.models.folder import DocumentFolder
 from app.models.message import Message, MessageRole
 from app.models.message_translation import MessageTranslation
+from app.models.revision_sheet import RevisionSheet, RevisionSheetStatus
 from app.models.query_log import QueryLog
 from app.models.quiz import Quiz, QuizAttempt
 from app.models.user import User
@@ -49,6 +50,8 @@ __all__ = [
     "Message",
     "MessageRole",
     "MessageTranslation",
+    "RevisionSheet",
+    "RevisionSheetStatus",
     "QueryLog",
     "Quiz",
     "QuizAttempt",
