@@ -35,6 +35,11 @@ _EVENT_CONFIG: dict[str, dict] = {
         "window_days": 30,
         "label": "revision sheet",
     },
+    "tutor_session": {
+        "limit_key": "tutor_sessions_per_week",
+        "window_days": 7,
+        "label": "tutor session",
+    },
 }
 
 
@@ -169,6 +174,7 @@ ROLLING_QUOTA_LABELS = {
     "voice_clone_use": "Voice clone generations",
     "language_explain": "Urdu / Roman Urdu explanations",
     "revision_sheet": "Revision sheets",
+    "tutor_session": "Tutor sessions",
 }
 
 

@@ -19,6 +19,10 @@ LIMITS_SCHEMA_DEFAULTS: dict = {
     "revision_sheets_per_month": None,
     "revision_sheet_max_pages": 2,
     "revision_sheet_advanced": True,
+    "tutor_sessions_per_week": None,
+    "tutor_max_turns_per_session": 30,
+    "tutor_levels_allowed": ["beginner", "intermediate", "exam_ready"],
+    "tutor_languages_allowed": ["en", "ur", "roman_ur"],
     "max_storage_mb": None,
     "priority_processing": False,
 }

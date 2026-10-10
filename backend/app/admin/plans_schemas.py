@@ -19,6 +19,10 @@ class PlanLimits(BaseModel):
     revision_sheets_per_month: int | None = None
     revision_sheet_max_pages: int | None = 2
     revision_sheet_advanced: bool = True
+    tutor_sessions_per_week: int | None = None
+    tutor_max_turns_per_session: int | None = 30
+    tutor_levels_allowed: list[str] = ["beginner", "intermediate", "exam_ready"]
+    tutor_languages_allowed: list[str] = ["en", "ur", "roman_ur"]
     max_storage_mb: int | None = None
     priority_processing: bool = False
 

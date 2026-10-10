@@ -21,7 +21,7 @@ class PublicPlan(BaseModel):
 class QuotaUsageItem(BaseModel):
     key: str
     label: str
-    limit: int | float | bool | None
+    limit: int | float | bool | list[str] | None
     current_usage: int | float
     resets_in_seconds: int | None = None
     resets_in_human: str | None = None

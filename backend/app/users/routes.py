@@ -61,6 +61,33 @@ def get_my_usage(current_user: User = Depends(get_current_user), db: Session = D
         )
     )
 
+    # Tutor Mode plan gates that aren't rolling counters (sessions per week is already in the
+    # rolling quotas above): longest session, and which levels/languages the plan allows.
+    quotas.append(
+        QuotaUsageItem(
+            key="tutor_max_turns_per_session",
+            label="Tutor turns per session",
+            limit=effective.get("tutor_max_turns_per_session"),
+            current_usage=0,
+        )
+    )
+    quotas.append(
+        QuotaUsageItem(
+            key="tutor_levels_allowed",
+            label="Tutor levels",
+            limit=list(effective.get("tutor_levels_allowed") or []),
+            current_usage=0,
+        )
+    )
+    quotas.append(
+        QuotaUsageItem(
+            key="tutor_languages_allowed",
+            label="Tutor languages",
+            limit=list(effective.get("tutor_languages_allowed") or []),
+            current_usage=0,
+        )
+    )
+
     return MyUsageResponse(
         plan_id=current_user.plan_id,
         plan_name=current_user.plan.name if current_user.plan else None,
