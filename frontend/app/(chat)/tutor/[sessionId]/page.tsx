@@ -81,6 +81,7 @@ export default function TutorSessionPage() {
   const [pendingStudent, setPendingStudent] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const endRequested = useRef(false);
+  const [endingEarly, setEndingEarly] = useState(false);
   const [endFailed, setEndFailed] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -119,6 +120,7 @@ export default function TutorSessionPage() {
   const finishSession = useCallback(() => {
     endRequested.current = true;
     setEndFailed(false);
+    setEndingEarly(true);
     api
       .post<{ session: TutorSession }>(`/tutor/sessions/${sessionId}/end`, {}, { auth: true })
       .then((res) => setSession(res.session))
@@ -126,7 +128,8 @@ export default function TutorSessionPage() {
         endRequested.current = false;
         setEndFailed(true);
         setError(err instanceof ApiError ? err.detail : "Couldn't finish the session. Please try again.");
-      });
+      })
+      .finally(() => setEndingEarly(false));
   }, [sessionId]);
 
   const needsEnd = !!session && session.finished && session.status === "active";
@@ -497,6 +500,15 @@ export default function TutorSessionPage() {
                 <span className="ml-auto text-[11px] text-neutral-400">
                   {session.turn_count} / {session.max_turns} turns
                 </span>
+                <button
+                  onClick={finishSession}
+                  disabled={busy || endingEarly}
+                  title="Stop here and see your summary"
+                  className="flex items-center gap-1 text-[11px] text-neutral-500 dark:text-neutral-400 hover:text-neutral-800 dark:hover:text-neutral-200 underline-offset-2 hover:underline disabled:opacity-50"
+                >
+                  {endingEarly && <Loader2 className="h-3 w-3 animate-spin" />}
+                  End session
+                </button>
               </div>
               {lastTutorTurn?.turn_type === "explanation" || lastTutorTurn?.turn_type === "answer_reveal" ? (
                 <p className="text-[11px] text-neutral-400 mt-1.5">Answer the check question, or tap Skip to move on.</p>
