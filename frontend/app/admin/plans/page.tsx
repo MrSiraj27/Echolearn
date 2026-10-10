@@ -18,6 +18,10 @@ interface PlanLimits {
   revision_sheets_per_month: number | null;
   revision_sheet_max_pages: number | null;
   revision_sheet_advanced: boolean;
+  tutor_sessions_per_week: number | null;
+  tutor_max_turns_per_session: number | null;
+  tutor_levels_allowed: string[];
+  tutor_languages_allowed: string[];
   max_storage_mb: number | null;
   priority_processing: boolean;
 }
@@ -33,7 +37,7 @@ interface Plan {
   updated_at: string;
 }
 
-const LIMIT_ROWS: { key: keyof PlanLimits; label: string; type: "number" | "bool" }[] = [
+const LIMIT_ROWS: { key: keyof PlanLimits; label: string; type: "number" | "bool" | "list" }[] = [
   { key: "max_documents", label: "Max documents", type: "number" },
   { key: "max_file_size_mb", label: "Max file size (MB)", type: "number" },
   { key: "max_audio_video_minutes", label: "Max audio/video (minutes)", type: "number" },
@@ -47,12 +51,17 @@ const LIMIT_ROWS: { key: keyof PlanLimits; label: string; type: "number" | "bool
   { key: "revision_sheets_per_month", label: "Revision sheets / month", type: "number" },
   { key: "revision_sheet_max_pages", label: "Revision sheet max pages (1-2)", type: "number" },
   { key: "revision_sheet_advanced", label: "Revision sheet languages & weak spots", type: "bool" },
+  { key: "tutor_sessions_per_week", label: "Tutor sessions / week", type: "number" },
+  { key: "tutor_max_turns_per_session", label: "Tutor turns per session", type: "number" },
+  { key: "tutor_levels_allowed", label: "Tutor levels (comma separated)", type: "list" },
+  { key: "tutor_languages_allowed", label: "Tutor languages (comma separated)", type: "list" },
   { key: "max_storage_mb", label: "Max storage (MB)", type: "number" },
   { key: "priority_processing", label: "Priority processing", type: "bool" },
 ];
 
-function formatLimit(value: number | boolean | null): string {
+function formatLimit(value: number | boolean | string[] | null): string {
   if (value === null) return "Unlimited";
+  if (Array.isArray(value)) return value.length ? value.join(", ") : "None";
   if (typeof value === "boolean") return value ? "Yes" : "No";
   return String(value);
 }
@@ -81,14 +90,19 @@ export default function AdminPlansPage() {
   function startEdit(plan: Plan, key: keyof PlanLimits) {
     const current = plan.limits[key];
     setEditingCell({ planId: plan.id, key });
-    setEditValue(current === null ? "" : String(current));
+    setEditValue(current === null ? "" : Array.isArray(current) ? current.join(", ") : String(current));
   }
 
   async function saveEdit(plan: Plan, key: keyof PlanLimits) {
     const rowType = LIMIT_ROWS.find((r) => r.key === key)?.type;
-    let value: number | boolean | null;
+    let value: number | boolean | string[] | null;
     if (rowType === "bool") {
       value = editValue === "true";
+    } else if (rowType === "list") {
+      value = editValue
+        .split(",")
+        .map((v) => v.trim())
+        .filter(Boolean);
     } else {
       value = editValue.trim() === "" ? null : Number(editValue);
       if (value !== null && Number.isNaN(value)) {
@@ -177,12 +191,12 @@ export default function AdminPlansPage() {
                         ) : (
                           <input
                             autoFocus
-                            type="number"
+                            type={row.type === "list" ? "text" : "number"}
                             value={editValue}
                             onChange={(e) => setEditValue(e.target.value)}
                             onBlur={() => saveEdit(plan, row.key)}
                             onKeyDown={(e) => e.key === "Enter" && saveEdit(plan, row.key)}
-                            placeholder="Unlimited"
+                            placeholder={row.type === "list" ? "a, b, c" : "Unlimited"}
                             disabled={saving}
                             className="w-28 text-sm rounded-lg border border-neutral-300 dark:border-neutral-700 bg-transparent px-2 py-1 text-neutral-900 dark:text-neutral-100 placeholder:text-neutral-400 focus:outline-none focus:ring-1 focus:ring-neutral-900 dark:focus:ring-neutral-100"
                           />

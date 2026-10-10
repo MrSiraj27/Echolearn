@@ -4,7 +4,8 @@ import { useRef, useState } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { motion, AnimatePresence } from "framer-motion";
-import { Copy, Check, RotateCcw, BookOpen, Sparkles, BookmarkPlus, BookmarkCheck, Loader2 } from "lucide-react";
+import { Copy, Check, RotateCcw, BookOpen, Sparkles, BookmarkPlus, BookmarkCheck, Loader2, GraduationCap } from "lucide-react";
+import Link from "next/link";
 import { AppLanguage, ChatMessage, ExplainLanguage, ExplainMode } from "@/lib/types";
 import { useChatStore } from "@/lib/chat-store";
 import UrduSpeakButton from "@/components/UrduSpeakButton";
@@ -433,6 +434,18 @@ export default function ChatBubble({
               <RotateCcw className="h-3.5 w-3.5" />
               Regenerate
             </button>
+          )}
+          {chatId && (
+            <Link
+              href={`/tutor?chat=${chatId}&topic=${encodeURIComponent(
+                (precedingQuestion || stripMarkdown(message.content)).slice(0, 120)
+              )}`}
+              className="text-xs hover:text-neutral-700 dark:hover:text-neutral-300 transition-colors inline-flex items-center gap-1"
+              title="Start a tutor session on this topic"
+            >
+              <GraduationCap className="h-3.5 w-3.5" />
+              Teach me this
+            </Link>
           )}
           {flashcardDocumentId && (
             <button

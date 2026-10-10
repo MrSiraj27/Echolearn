@@ -24,6 +24,7 @@ import {
   CalendarClock,
   ClipboardList,
   ScrollText,
+  GraduationCap,
 } from "lucide-react";
 import { useChatStore } from "@/lib/chat-store";
 import { useAuth } from "@/lib/auth-context";
@@ -119,6 +120,7 @@ function DocumentRow({
   onCreateFolder,
   deleting,
   onRevise,
+  onTutor,
 }: {
   doc: DocumentItem;
   folders: Folder[];
@@ -128,6 +130,7 @@ function DocumentRow({
   onCreateFolder: (name: string) => Promise<Folder>;
   deleting: boolean;
   onRevise: () => void;
+  onTutor: () => void;
 }) {
   const [expanded, setExpanded] = useState(false);
   const searchable = SEARCHABLE_STATUSES.includes(doc.status);
@@ -162,6 +165,19 @@ function DocumentRow({
               aria-label={`Search in ${doc.filename}`}
             >
               <Search className="h-3.5 w-3.5" />
+            </button>
+          )}
+          {searchable && (
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                onTutor();
+              }}
+              className="opacity-0 group-hover:opacity-100 text-neutral-400 hover:text-neutral-700 dark:hover:text-neutral-200 p-0.5 transition-opacity"
+              aria-label={`Tutor session on ${doc.filename}`}
+              title="Learn this with the tutor"
+            >
+              <GraduationCap className="h-3.5 w-3.5" />
             </button>
           )}
           {searchable && (
@@ -645,6 +661,10 @@ export default function Sidebar({ activeChatId }: { activeChatId?: string }) {
                           onCreateFolder={createFolder}
                           deleting={isBusy(`doc:${doc.id}`)}
                           onRevise={() => setRevisionModal({ documentIds: [doc.id] })}
+                          onTutor={() => {
+                            setMobileOpen(false);
+                            router.push(`/tutor?doc=${doc.id}`);
+                          }}
                         />
                       ))}
                       {folderDocs.length === 0 && (
@@ -673,6 +693,10 @@ export default function Sidebar({ activeChatId }: { activeChatId?: string }) {
                   onCreateFolder={createFolder}
                   deleting={isBusy(`doc:${doc.id}`)}
                   onRevise={() => setRevisionModal({ documentIds: [doc.id] })}
+                  onTutor={() => {
+                    setMobileOpen(false);
+                    router.push(`/tutor?doc=${doc.id}`);
+                  }}
                 />
               ))}
             </div>
@@ -713,6 +737,17 @@ export default function Sidebar({ activeChatId }: { activeChatId?: string }) {
                 <span className="text-xs text-neutral-400 dark:text-neutral-500 shrink-0">
                   ({workspace.document_count})
                 </span>
+              </button>
+              <button
+                onClick={() => {
+                  setMobileOpen(false);
+                  router.push(`/tutor?workspace=${workspace.id}`);
+                }}
+                className="opacity-0 group-hover:opacity-100 text-neutral-400 hover:text-neutral-700 dark:hover:text-neutral-200 p-0.5 transition-opacity shrink-0"
+                aria-label={`Tutor session on ${workspace.name}`}
+                title="Learn this workspace with the tutor"
+              >
+                <GraduationCap className="h-3.5 w-3.5" />
               </button>
               <button
                 onClick={() => setRevisionModal({ documentIds: [], workspace: { id: workspace.id, name: workspace.name } })}
@@ -910,6 +945,14 @@ export default function Sidebar({ activeChatId }: { activeChatId?: string }) {
       <UsagePanel />
 
       <div className="px-3 py-3 border-t border-neutral-200 dark:border-neutral-800 space-y-1">
+        <Link
+          href="/tutor"
+          onClick={() => setMobileOpen(false)}
+          className="w-full flex items-center gap-2 text-sm text-neutral-500 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-neutral-100 px-1 py-1 transition-colors"
+        >
+          <GraduationCap className="h-4 w-4" />
+          Tutor mode
+        </Link>
         <Link
           href="/analytics"
           onClick={() => setMobileOpen(false)}

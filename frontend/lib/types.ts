@@ -571,3 +571,87 @@ export interface RevisionSheetDetail {
   error_message: string | null;
   created_at: string;
 }
+
+// ---- Tutor Mode ---------------------------------------------------------------------------
+
+export type TutorLevel = "beginner" | "intermediate" | "exam_ready";
+export type TutorLanguage = "en" | "ur" | "roman_ur";
+
+export interface TutorSourceRef {
+  document_id: string | null;
+  filename: string | null;
+  page_number: number | null;
+  start_time_seconds: number | null;
+}
+
+export interface TutorTurn {
+  id: string;
+  step_index: number;
+  role: "tutor" | "student";
+  content: string;
+  turn_type: string | null;
+  hint_level: number | null;
+  verdict: "correct" | "partial" | "incorrect" | "skipped" | null;
+  source_refs: TutorSourceRef[] | null;
+  created_at: string;
+}
+
+export interface TutorConceptProgress {
+  index: number;
+  name: string;
+  phase: string;
+  mastered: boolean;
+  revealed: boolean;
+  attempts: number;
+  hints_used: number;
+}
+
+export interface TutorProgress {
+  concept_index: number;
+  total_concepts: number;
+  mastered_count: number;
+  revealed_count: number;
+  hint_level: number;
+  phase: string;
+  concepts: TutorConceptProgress[];
+}
+
+export interface TutorSummary {
+  strengths: string[];
+  needs_work: { concept: string; why: string; source_refs: TutorSourceRef[] }[];
+  next_steps: string[];
+  cards_added?: number;
+  mastered_count?: number;
+  total_concepts?: number;
+}
+
+export interface TutorSession {
+  id: string;
+  title: string;
+  topic: string;
+  level: TutorLevel;
+  language: TutorLanguage;
+  status: "active" | "completed" | "abandoned";
+  turn_count: number;
+  max_turns: number;
+  document_ids: string[];
+  workspace_id: string | null;
+  created_at: string;
+  completed_at: string | null;
+  summary: TutorSummary | null;
+  progress: TutorProgress;
+  finished: boolean;
+  turns: TutorTurn[];
+}
+
+export interface TutorSessionListItem {
+  id: string;
+  title: string;
+  topic: string;
+  level: TutorLevel;
+  status: "active" | "completed" | "abandoned";
+  turn_count: number;
+  mastered_count: number;
+  total_concepts: number;
+  created_at: string;
+}
