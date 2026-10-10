@@ -226,6 +226,29 @@ def _validate_concepts(raw, by_id: dict[str, dict]) -> list[dict]:
     return out
 
 
+# ------------------------------------------------------------------ 1b. "explain it to me" requests
+
+# A student who doesn't know the answer often says so instead of guessing: "explain in simple
+# words", "I don't understand", "give me an example". That is a request for help, not a wrong
+# answer, so it must not be graded or push the hint ladder up. A cheap phrase check comes first
+# (no model call); the grader also flags these via its "intent" field for phrasings we miss.
+EXPLAIN_REQUEST_RE = re.compile(
+    r"\b(explain|simple words|simple terms|simply|easy words|easier|in simple|break (it|this) down|"
+    r"what does (it|this|that) mean|what is (it|this|that)|i (do not|don'?t|dont) (know|understand|get)|"
+    r"no idea|not sure|confus|can you (explain|help)|give (me )?an? example|example please|"
+    r"help me understand|teach me|i'?m lost|"
+    r"samajh nahi|samajh nhi|samjha|samjhao|pata nahi|pata nhi|nahi pata|nahi maloom|aasan|asaan|misaal|example do)\b"
+    r"|سمجھ نہیں|سمجھا|نہیں پتا|نہیں معلوم|آسان|مثال",
+    re.IGNORECASE,
+)
+EXPLAIN_REQUEST_MAX_WORDS = 25  # a long message is an attempt at an answer, not a request
+
+
+def is_explain_request(message: str) -> bool:
+    text = message.strip()
+    return bool(text) and len(text.split()) <= EXPLAIN_REQUEST_MAX_WORDS and EXPLAIN_REQUEST_RE.search(text) is not None
+
+
 # ------------------------------------------------------------------ 2. evaluate
 
 EVAL_SYSTEM = """You are a fair but careful grader inside a tutoring app. Judge the student's answer ONLY against the EXPECTED POINTS and the SOURCE PASSAGE. Never use outside knowledge to decide, even if you know the real answer.
@@ -238,7 +261,9 @@ Verdicts:
 - "incorrect": it is wrong, off-topic, or contradicts the passage
 If you are unsure, answer "partial". A vague answer is "partial", never "correct". The student may answer in English, Urdu or Roman Urdu.
 
-Return ONLY JSON: {"verdict": "correct|partial|incorrect", "matched": [0-based indices of the expected points the answer clearly covers], "missing_points": ["short phrases for what is missing"], "misconception": "ONLY if the answer states something that CONTRADICTS the passage: one short sentence naming the mistake. If it is merely vague, incomplete, thin or off-topic, use null"}"""
+Also set "intent" to "explain_request" if the student is NOT attempting an answer but is asking you to explain, simplify or give an example, or says they do not know or understand; otherwise "answer".
+
+Return ONLY JSON: {"intent": "answer|explain_request", "verdict": "correct|partial|incorrect", "matched": [0-based indices of the expected points the answer clearly covers], "missing_points": ["short phrases for what is missing"], "misconception": "ONLY if the answer states something that CONTRADICTS the passage: one short sentence naming the mistake. If it is merely vague, incomplete, thin or off-topic, use null"}"""
 
 
 def evaluate_answer(question: str, answer: str, concept: dict, user_id: uuid.UUID) -> dict:
@@ -294,7 +319,9 @@ def guard_evaluation(data: dict, answer: str, concept: dict) -> dict:
     if not missing:
         missing = [concept["expected_points"][i] for i in range(n_points) if i not in matched][:3]
     misconception = _clean(data.get("misconception")) or None
-    return {"verdict": verdict, "matched": matched, "missing_points": missing, "misconception": misconception}
+    intent = "explain_request" if data.get("intent") == "explain_request" else "answer"
+    return {"verdict": verdict, "matched": matched, "missing_points": missing, "misconception": misconception,
+            "intent": intent}
 
 
 # ------------------------------------------------------------------ 3. decide (pure code)
@@ -345,6 +372,14 @@ def decide_next(action: str, cstate: dict, concept: dict, evaluation: dict | Non
             reveal(None, "reveal")
         else:
             d.update(kind="hint", hint_level=level)
+        return d
+
+    if action == "explain" or (action == "answer" and evaluation and evaluation.get("intent") == "explain_request"):
+        # The student asked for help instead of guessing. Not graded, no ladder climb and no
+        # attempt counted; but it is help, so it counts as a hint toward the mastery rule.
+        cstate["hints_used"] += 1
+        d.update(kind="explain_simple", verdict=None, hint_level=cstate["hint_level"],
+                 question=cstate.get("current_question") or concept["starter_question"])
         return d
 
     # action == "answer"
@@ -437,6 +472,13 @@ def build_response_messages(decision: dict, concept: dict, student_answer: str |
     elif kind == "skip":
         task = "The student chose to skip this concept. Say, warmly and in one short sentence, that it is fine and you will move on."
         task += _then_ask(decision)
+    elif kind == "explain_simple":
+        task = ("The student asked you to explain this in simple words (they may not know the answer). "
+                "Explain the idea behind the current question in very simple, everyday words, in 3-5 short sentences, "
+                "using ONLY the SOURCE PASSAGE. Include ONE short, concrete example: use an example from the passage "
+                "if it has one; otherwise a simple everyday comparison introduced with \"Think of it like...\" that "
+                "adds no new facts or numbers. Do not hand over the full answer in one line; help them think. "
+                f"Then invite the student to try the question again, word for word: \"{decision['question']}\"")
     elif kind == "reveal":
         task = ("Explain this concept clearly from the SOURCE PASSAGE, in 3-5 short sentences, starting from what the "
                 f"student already said if useful. Then ask this check question word for word: \"{decision['question']}\"")
@@ -469,6 +511,8 @@ def safe_fallback_text(decision: dict, concept: dict) -> str:
     kind = decision["kind"]
     if kind == "skip":
         return "No problem, let's move on."
+    if kind == "explain_simple":
+        return f"No problem, here's the idea in simple words: {concept['key_idea']} Now try again: {decision['question']}"
     if kind == "praise_next_question":
         return f"Nice work, that's right. Next question: {decision['question']}"
     if kind == "praise_advance":

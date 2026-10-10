@@ -25,6 +25,7 @@ TURN_TYPE_BY_KIND = {
     "check_feedback": "check",
     "reveal": "explanation",
     "hint": "hint",
+    "explain_simple": "explanation",
     "skip": "feedback",
 }
 
@@ -204,7 +205,7 @@ def prepare_turn(db: Session, user: User, session: TutorSession, action: str, co
     idx = session.current_step
     if idx >= len(concepts):
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="This session is complete.")
-    if action == "answer" and not (content or "").strip():
+    if action in ("answer", "explain") and not (content or "").strip():
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Write an answer first.")
     if action != "skip":
         # Every turn that calls the model also counts toward the plan's normal message limit,
@@ -239,7 +240,11 @@ def _ensure_question(text: str, question: str | None, language: str) -> str:
 def finalize_text(ctx: TurnContext, decision: dict, raw_text: str | None) -> tuple[str, bool]:
     """(final reply, replaced). Falls back to a deterministic grounded message if the model's
     text broke a rule or couldn't be produced."""
-    asked = decision.get("question") if decision["kind"] in ("praise_next_question", "reveal") else decision.get("next_question")
+    asked = (
+        decision.get("question")
+        if decision["kind"] in ("praise_next_question", "reveal", "explain_simple")
+        else decision.get("next_question")
+    )
     if not raw_text:
         text = tg.safe_fallback_text(decision, ctx.concept)
         if decision["kind"] == "skip" and decision.get("next_question"):
@@ -261,10 +266,10 @@ def commit_turn(db: Session, ctx: TurnContext, state: dict, text: str) -> TutorT
     evaluation = state.get("evaluation")
     refs = _public_refs(ctx.concept)
 
-    if ctx.action == "answer":
+    if ctx.action in ("answer", "explain"):
         db.add(TutorTurn(
             session_id=session.id, step_index=ctx.idx, role="student", content=ctx.content or "",
-            verdict=(evaluation or {}).get("verdict"),
+            verdict=decision.get("verdict"),  # None for a "please explain" request: it isn't graded
         ))
     tutor_type = "answer_reveal" if ctx.action == "just_tell_me" else TURN_TYPE_BY_KIND.get(decision["kind"], "feedback")
     turn = TutorTurn(

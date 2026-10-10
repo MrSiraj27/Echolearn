@@ -462,7 +462,7 @@ export default function TutorSessionPage() {
                   rows={2}
                   maxLength={2000}
                   dir="auto"
-                  placeholder={active ? "Type your answer…" : "Finishing up…"}
+                  placeholder={active ? "Type your answer, or ask me to explain it in simple words…" : "Finishing up…"}
                   className="flex-1 resize-none text-sm rounded-xl border border-neutral-300 dark:border-neutral-700 bg-transparent px-3 py-2 text-neutral-900 dark:text-neutral-100 placeholder:text-neutral-400 focus:outline-none focus:ring-1 focus:ring-neutral-900 dark:focus:ring-neutral-100 disabled:opacity-60"
                 />
                 <button

@@ -249,7 +249,9 @@ async def send_message(
     """Grade the student's answer and stream the tutor's reply. Ends with a `done` event:
     {verdict, hint_level, concept_index, total_concepts, mastered_count, ...}."""
     session = _get_owned(db, session_id, current_user.id, lock=True)
-    ctx = service.prepare_turn(db, current_user, session, "answer", payload.content)
+    # "Explain it simply" / "I don't know" is a request for help, not an answer to grade.
+    action = "explain" if tg.is_explain_request(payload.content) else "answer"
+    ctx = service.prepare_turn(db, current_user, session, action, payload.content)
 
     async def event_stream():
         try:
