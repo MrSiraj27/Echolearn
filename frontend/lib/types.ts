@@ -631,7 +631,7 @@ export interface TutorSession {
   topic: string;
   level: TutorLevel;
   language: TutorLanguage;
-  status: "active" | "completed" | "abandoned";
+  status: "active" | "completed";
   turn_count: number;
   max_turns: number;
   document_ids: string[];
@@ -649,7 +649,7 @@ export interface TutorSessionListItem {
   title: string;
   topic: string;
   level: TutorLevel;
-  status: "active" | "completed" | "abandoned";
+  status: "active" | "completed";
   turn_count: number;
   mastered_count: number;
   total_concepts: number;

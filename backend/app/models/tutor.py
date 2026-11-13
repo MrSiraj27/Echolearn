@@ -10,7 +10,7 @@ from app.core.database import Base
 # String-valued fields (not DB enums) so the value sets can grow without a migration:
 #   TutorSession.level    beginner | intermediate | exam_ready
 #   TutorSession.language en | ur | roman_ur
-#   TutorSession.status   active | completed | abandoned
+#   TutorSession.status   active | completed   (deleting a session is a hard delete)
 #   TutorTurn.role        tutor | student
 #   TutorTurn.turn_type   question | hint | explanation | feedback | check | summary | answer_reveal
 #   TutorTurn.verdict     correct | partial | incorrect | skipped

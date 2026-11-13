@@ -27,7 +27,7 @@ interface Quota {
   resets_in_human: string | null;
 }
 
-const STATUS_LABEL: Record<string, string> = { active: "In progress", completed: "Completed", abandoned: "Stopped" };
+const STATUS_LABEL: Record<string, string> = { active: "In progress", completed: "Completed" };
 
 function TutorStart() {
   const router = useRouter();

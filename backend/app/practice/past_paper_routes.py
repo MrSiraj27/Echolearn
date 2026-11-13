@@ -71,6 +71,30 @@ def run_past_paper_pipeline(
         db.close()
 
 
+def fail_interrupted_past_papers() -> int:
+    """Startup hook: a past paper still pending/analyzing belongs to a background task that
+    died with the previous process. Left alone it would block every practice paper based on
+    it ("still being analysed") forever. Mirrors app.revision.routes.fail_interrupted_sheets."""
+    db = SessionLocal()
+    try:
+        stuck = (
+            db.query(PastPaper)
+            .filter(PastPaper.analysis_status.in_([PastPaperAnalysisStatus.pending, PastPaperAnalysisStatus.analyzing]))
+            .all()
+        )
+        for past_paper in stuck:
+            past_paper.analysis_status = PastPaperAnalysisStatus.failed
+            past_paper.error_message = "This was interrupted by a server restart. Please upload it again."
+        db.commit()
+        return len(stuck)
+    except Exception:
+        logger.exception("Couldn't clean up interrupted past paper analyses")
+        db.rollback()
+        return 0
+    finally:
+        db.close()
+
+
 def _summary(pattern: dict | None) -> str | None:
     if not pattern:
         return None

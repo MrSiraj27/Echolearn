@@ -416,10 +416,11 @@ export const useChatStore = create<ChatState>((set, get) => ({
     const startedAt = Date.now();
     const interval = setInterval(async () => {
       if (Date.now() - startedAt > 15 * 60 * 1000) {
+        // Stop polling, but don't invent a "failed" status: the server may still be
+        // working on it (queued behind another job, or a long transcription). Show
+        // whatever the server says; it fails interrupted jobs itself on restart.
         clearInterval(interval);
-        set((state) => ({
-          documents: state.documents.map((d) => (d.id === documentId ? { ...d, status: "failed" } : d)),
-        }));
+        get().loadDocuments();
         return;
       }
       try {

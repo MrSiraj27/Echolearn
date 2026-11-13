@@ -22,8 +22,8 @@ from app.documents.routes import router as documents_router
 from app.revision.routes import fail_interrupted_sheets, router as revision_sheets_router
 from app.tutor.routes import router as tutor_router
 from app.folders.routes import router as folders_router
-from app.practice.past_paper_routes import router as past_papers_router
-from app.practice.paper_routes import router as practice_papers_router
+from app.practice.past_paper_routes import fail_interrupted_past_papers, router as past_papers_router
+from app.practice.paper_routes import fail_interrupted_papers, router as practice_papers_router
 from app.quizzes.routes import router as quizzes_router
 from app.study.plan_routes import router as study_plans_router
 from app.study.review_routes import review_cards_router, review_router
@@ -69,6 +69,8 @@ async def lifespan(app: FastAPI):
     load_clone_model()  # only logs whether the isolated cloning worker is installed; it starts lazily
     fail_interrupted_jobs()
     fail_interrupted_sheets()
+    fail_interrupted_papers()
+    fail_interrupted_past_papers()
     n_docs = fail_interrupted_documents()
     if n_docs:
         logger.warning("Marked %d interrupted document-processing job(s) as failed/ready on startup.", n_docs)

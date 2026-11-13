@@ -157,6 +157,14 @@ def retry_document_processing(
     document = db.query(Document).filter(Document.id == document_id).first()
     if not document:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Document not found.")
+    # Only a finished document (failed, or ready and being reprocessed) can be retried.
+    # Resetting one that is still uploaded/parsing/embedded would start a second parse job
+    # for the same document while the first is still running, and wipe its vectors mid-write.
+    if document.status not in (DocumentStatus.failed, DocumentStatus.ready):
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=f"This document is still processing ({document.status.value}). Wait for it to finish first.",
+        )
 
     try:
         delete_vector_chunks(document.id)

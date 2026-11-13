@@ -1,6 +1,5 @@
 import logging
 import uuid
-from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
@@ -21,6 +20,7 @@ from app.quizzes.schemas import (
 )
 from app.rag.quiz_generator import generate_quiz
 from app.study.card_service import create_review_cards
+from app.study.lifecycle import TransitionError, resolve_session
 
 router = APIRouter(prefix="/quizzes", tags=["quizzes"])
 logger = logging.getLogger(__name__)
@@ -82,10 +82,15 @@ def _autocomplete_linked_study_session(db: Session, quiz_id: uuid.UUID) -> None:
         .filter(StudySession.quiz_id == quiz_id, StudySession.status == StudySessionStatus.pending)
         .first()
     )
-    if session:
-        session.status = StudySessionStatus.completed
-        session.completed_at = datetime.now(timezone.utc)
-        db.commit()
+    if not session:
+        return
+    try:
+        # Same rules as the manual "complete" button: only while the plan is active, and
+        # finishing the last pending session completes the plan.
+        if resolve_session(session.plan, session, StudySessionStatus.completed):
+            db.commit()
+    except TransitionError:
+        pass  # e.g. the plan was abandoned; the quiz result still counts, the session stays as it is
 
 
 @router.post("/generate", response_model=QuizResponse, status_code=status.HTTP_201_CREATED)

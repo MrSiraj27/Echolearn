@@ -1,5 +1,5 @@
 import uuid
-from datetime import date, datetime, timezone
+from datetime import date
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
@@ -19,6 +19,7 @@ from app.models import (
 )
 from app.rag.study_planner import compress_remaining_sessions, create_plan_rows, generate_session_content, preview_plan
 from app.study.card_service import create_review_cards
+from app.study.lifecycle import TransitionError, require_active, resolve_session
 from app.study.schemas import (
     CreateStudyPlanRequest,
     PlanStatusResponse,
@@ -193,6 +194,13 @@ def _get_owned_session(db: Session, plan: StudyPlan, session_id: uuid.UUID) -> S
     return session
 
 
+def _resolve(plan: StudyPlan, session: StudySession, target: StudySessionStatus) -> None:
+    try:
+        resolve_session(plan, session, target)
+    except TransitionError as exc:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc))
+
+
 @router.post("/{plan_id}/sessions/{session_id}/complete", response_model=StudySessionPublic)
 def complete_session(
     plan_id: uuid.UUID,
@@ -202,8 +210,7 @@ def complete_session(
 ):
     plan = _get_owned_plan(db, plan_id, current_user.id)
     session = _get_owned_session(db, plan, session_id)
-    session.status = StudySessionStatus.completed
-    session.completed_at = datetime.now(timezone.utc)
+    _resolve(plan, session, StudySessionStatus.completed)
     db.commit()
     db.refresh(session)
     return StudySessionPublic.model_validate(session)
@@ -218,7 +225,7 @@ def skip_session(
 ):
     plan = _get_owned_plan(db, plan_id, current_user.id)
     session = _get_owned_session(db, plan, session_id)
-    session.status = StudySessionStatus.skipped
+    _resolve(plan, session, StudySessionStatus.skipped)
     db.commit()
     db.refresh(session)
     return StudySessionPublic.model_validate(session)
@@ -301,6 +308,10 @@ def get_plan_status(plan_id: uuid.UUID, current_user: User = Depends(get_current
 @router.post("/{plan_id}/compress", response_model=StudyPlanDetailResponse)
 def compress_plan(plan_id: uuid.UUID, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     plan = _get_owned_plan(db, plan_id, current_user.id)
+    try:
+        require_active(plan)
+    except TransitionError as exc:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc))
     compress_remaining_sessions(db, plan)
     db.refresh(plan)
     base = _to_plan_response(plan)

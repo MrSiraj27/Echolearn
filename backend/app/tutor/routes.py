@@ -215,8 +215,6 @@ def end_session(
 ):
     """Finish: summary, and flashcards for the concepts that need another look."""
     session = _get_owned(db, session_id, current_user.id, lock=True)
-    if session.status == "abandoned":
-        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="This session was abandoned.")
     try:
         session = service.end_session(db, current_user, session)
     except Exception:

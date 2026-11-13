@@ -228,6 +228,26 @@ def run_generation_task(paper_id: uuid.UUID) -> None:
         db.close()
 
 
+def fail_interrupted_papers() -> int:
+    """Startup hook: a paper still `generating` belongs to a background task that died with
+    the previous process. Fail it now instead of waiting for the read-time stale check
+    (STALE_GENERATION_MINUTES), so the UI stops spinning right after a restart."""
+    db = SessionLocal()
+    try:
+        stuck = db.query(PracticePaper).filter(PracticePaper.status == PracticePaperStatus.generating).all()
+        for paper in stuck:
+            paper.status = PracticePaperStatus.failed
+            paper.error_message = "This was interrupted by a server restart. Please generate the paper again."
+        db.commit()
+        return len(stuck)
+    except Exception:
+        logger.exception("Couldn't clean up interrupted practice papers")
+        db.rollback()
+        return 0
+    finally:
+        db.close()
+
+
 # ---- routes ----
 
 

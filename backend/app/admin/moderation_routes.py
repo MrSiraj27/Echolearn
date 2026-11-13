@@ -76,6 +76,12 @@ def action_report(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Report not found.")
     if payload.action not in ("dismiss", "remove_document", "suspend_user"):
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid action.")
+    # A report is resolved exactly once: pending -> dismissed | actioned. Re-resolving would
+    # let one admin silently overturn another's decision and log a second action.
+    if report.status != "pending":
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT, detail=f"This report has already been {report.status}."
+        )
 
     document = db.query(Document).filter(Document.id == report.document_id).first()
     ip = request.client.host if request.client else None
