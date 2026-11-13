@@ -12,7 +12,8 @@ def clean_text(text: str) -> str:
     """Drop PDF-extraction noise: '(cid:9)' glyph placeholders and bare URL footer lines."""
     text = _CID_PATTERN.sub(" ", text)
     text = _URL_LINE_PATTERN.sub("", text)
-    return re.sub(r"[ \t]{2,}", " ", text).strip()
+    text = re.sub(r"[ \t]{2,}", " ", text)
+    return re.sub(r"[ \t]*\n[ \t]*", "\n", text).strip()
 
 
 class _RecursiveCharacterTextSplitter:

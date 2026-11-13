@@ -1,7 +1,9 @@
 import uuid
 from datetime import datetime
 
-from pydantic import BaseModel, field_validator
+from typing import Literal
+
+from pydantic import BaseModel, Field, field_validator
 
 from app.core.languages import contains_devanagari
 from app.models.document import DocumentStatus
@@ -38,6 +40,7 @@ class DocumentStatusResponse(BaseModel):
     status: DocumentStatus
     page_count: int | None = None
     filename: str
+    error_message: str | None = None
 
 
 class DocumentListItem(BaseModel):
@@ -48,6 +51,9 @@ class DocumentListItem(BaseModel):
     created_at: datetime
     summary: str | None = None
     suggested_questions: list[str] | None = None
+    page_count: int | None = None
+    file_size: int | None = None
+    error_message: str | None = None
 
     _clean_summary = field_validator("summary")(_drop_hindi_summary)
     _clean_questions = field_validator("suggested_questions")(_drop_hindi_questions)
@@ -87,3 +93,50 @@ class TranscriptSegmentResponse(BaseModel):
     start_time: float | None = None
     end_time: float | None = None
     text: str
+
+
+class RenameDocumentRequest(BaseModel):
+    filename: str = Field(min_length=1, max_length=200)
+
+
+class DocumentPage(BaseModel):
+    page_number: int
+    text: str
+
+
+class DocumentPagesResponse(BaseModel):
+    document_id: uuid.UUID
+    filename: str
+    file_type: str
+    pages: list[DocumentPage]
+
+
+class ExplainSelectionRequest(BaseModel):
+    text: str = Field(min_length=1, max_length=4000)
+    page_number: int | None = Field(default=None, ge=1)
+    language: Literal["en", "ur", "roman_ur"] = "en"
+    # Follow-up mode: a question about the selection, with the earlier explanation for context.
+    question: str | None = Field(default=None, max_length=1000)
+    previous_explanation: str | None = Field(default=None, max_length=3000)
+
+
+class ExplainTerm(BaseModel):
+    term: str
+    meaning: str
+
+
+class ExplainSource(BaseModel):
+    page_number: int | None = None
+    text: str
+
+
+class ExplainSelectionResponse(BaseModel):
+    kind: str
+    selected_text: str
+    simple_explanation: str | None = None
+    key_points: list[str] = []
+    example: str | None = None
+    terms: list[ExplainTerm] = []
+    follow_up_questions: list[str] = []
+    answer: str | None = None
+    sources: list[ExplainSource] = []

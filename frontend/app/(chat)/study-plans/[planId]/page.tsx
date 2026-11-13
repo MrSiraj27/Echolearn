@@ -4,7 +4,6 @@ import { use, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { AnimatePresence } from "framer-motion";
 import { ArrowLeft, CheckCircle2, XCircle, Loader2, AlertTriangle, ScrollText } from "lucide-react";
-import Sidebar from "@/components/Sidebar";
 import RevisionSheetModal from "@/components/RevisionSheetModal";
 import { useChatStore } from "@/lib/chat-store";
 import { api, ApiError } from "@/lib/api";
@@ -93,8 +92,7 @@ export default function StudyPlanDetailPage({ params }: { params: Promise<{ plan
   if (loading) {
     return (
       <>
-        <Sidebar />
-        <main className="flex-1 min-w-0 overflow-y-auto bg-white dark:bg-neutral-950 px-6 py-10">
+        <main className="flex-1 min-w-0 overflow-y-auto px-6 py-10">
           <p className="text-sm text-neutral-400">Loading...</p>
         </main>
       </>
@@ -104,8 +102,7 @@ export default function StudyPlanDetailPage({ params }: { params: Promise<{ plan
   if (error || !plan) {
     return (
       <>
-        <Sidebar />
-        <main className="flex-1 min-w-0 overflow-y-auto bg-white dark:bg-neutral-950 px-6 py-10">
+        <main className="flex-1 min-w-0 overflow-y-auto px-6 py-10">
           <p className="text-sm text-red-600 dark:text-red-400">{error || "Plan not found."}</p>
         </main>
       </>
@@ -118,8 +115,7 @@ export default function StudyPlanDetailPage({ params }: { params: Promise<{ plan
 
   return (
     <>
-      <Sidebar />
-      <main className="flex-1 min-w-0 overflow-y-auto bg-white dark:bg-neutral-950">
+      <main className="flex-1 min-w-0 overflow-y-auto">
         <div className="max-w-2xl mx-auto px-6 py-10">
           <button
             onClick={() => router.push("/study-plans")}

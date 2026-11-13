@@ -32,7 +32,7 @@ export default function LoginPage() {
     try {
       const data = await api.post<{ access_token: string }>("/auth/login", { email, password });
       login(data.access_token);
-      router.push("/chat");
+      router.push("/dashboard");
     } catch (err) {
       if (err instanceof ApiError && err.status === 403) {
         setNeedsVerification(true);

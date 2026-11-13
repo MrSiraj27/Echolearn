@@ -4,6 +4,7 @@ from pathlib import Path
 from app.documents.background import parsed_text_path
 from app.documents.object_storage import download_dir
 from app.models import Document
+from app.rag.chunking import clean_text
 
 
 def _document_dir(document: Document) -> Path:
@@ -20,7 +21,12 @@ def load_pages(document: Document) -> list[dict]:
         download_dir(f"{document.user_id}/{document.id}", _document_dir(document))
     if not path.exists():
         return []
-    return json.loads(path.read_text(encoding="utf-8"))
+    pages = json.loads(path.read_text(encoding="utf-8"))
+    # Strip PDF extraction noise ("(cid:1127)" glyph codes, bare URL footer lines) so the
+    # reader, source previews and explanations show the same clean text the index uses.
+    for page in pages:
+        page["text"] = clean_text(page.get("text") or "")
+    return pages
 
 
 def get_page(document: Document, page_number: int) -> dict | None:

@@ -4,7 +4,6 @@ import { Suspense, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { ArrowLeft, GraduationCap, Loader2, Lock, Trash2 } from "lucide-react";
-import Sidebar from "@/components/Sidebar";
 import { api, ApiError } from "@/lib/api";
 import { useChatStore } from "@/lib/chat-store";
 import { TutorLanguage, TutorLevel, TutorSession, TutorSessionListItem } from "@/lib/types";
@@ -147,9 +146,8 @@ function TutorStart() {
 
   return (
     <>
-      <Sidebar />
-      <main className="flex-1 min-w-0 overflow-y-auto bg-white dark:bg-neutral-950">
-        <div className="max-w-2xl mx-auto px-4 sm:px-6 py-8 pt-16 lg:pt-8">
+      <main className="flex-1 min-w-0 overflow-y-auto">
+        <div className="max-w-2xl mx-auto px-4 sm:px-6 py-8 pt-8">
           <button
             onClick={() => router.push("/chat")}
             className="flex items-center gap-1 text-xs text-neutral-400 hover:text-neutral-700 dark:hover:text-neutral-200 mb-6"

@@ -4,6 +4,7 @@ from collections import Counter, defaultdict
 from datetime import datetime, timedelta, timezone
 
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request, status
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from app.admin.audit import log_admin_action
@@ -23,7 +24,17 @@ from app.admin.system_schemas import VoiceCloneJobHealth
 from app.core.database import get_db
 from app.core.security import get_current_admin
 from app.documents.background import run_parsing_task
-from app.models import APICallLog, Document, DocumentStatus, User, VoiceCloneJob, VoiceCloneJobStatus
+from app.models import (
+    APICallLog,
+    Document,
+    DocumentStatus,
+    Message,
+    MessageFeedback,
+    MessageRole,
+    User,
+    VoiceCloneJob,
+    VoiceCloneJobStatus,
+)
 from app.rag.vectorstore import delete_document as delete_vector_chunks
 
 router = APIRouter(prefix="/admin/system", tags=["admin-system"], dependencies=[Depends(get_current_admin)])
@@ -232,3 +243,47 @@ def blocked_users(admin: User = Depends(get_current_admin), db: Session = Depend
             )
         )
     return items
+
+
+@router.get("/feedback")
+def answer_feedback(
+    rating: str | None = None,
+    limit: int = 50,
+    db: Session = Depends(get_db),
+):
+    """Answer ratings for evaluating retrieval and answer quality: totals per rating, plus
+    the most recent rated answers (optionally one rating only) with the question that
+    produced them and how many sources were cited."""
+    limit = max(1, min(limit, 200))
+    totals = dict(
+        db.query(MessageFeedback.rating, func.count(MessageFeedback.id)).group_by(MessageFeedback.rating).all()
+    )
+    query = db.query(MessageFeedback, Message).join(Message, Message.id == MessageFeedback.message_id)
+    if rating:
+        query = query.filter(MessageFeedback.rating == rating)
+    rows = query.order_by(MessageFeedback.created_at.desc()).limit(limit).all()
+
+    items = []
+    for fb, answer in rows:
+        question = (
+            db.query(Message.content)
+            .filter(
+                Message.chat_id == answer.chat_id,
+                Message.role == MessageRole.user,
+                Message.created_at <= answer.created_at,
+            )
+            .order_by(Message.created_at.desc())
+            .first()
+        )
+        items.append(
+            {
+                "id": str(fb.id),
+                "rating": fb.rating,
+                "comment": fb.comment,
+                "created_at": fb.created_at,
+                "question": (question[0] if question else "")[:500],
+                "answer": answer.content[:800],
+                "citation_count": len(answer.citations or []),
+            }
+        )
+    return {"totals": totals, "items": items}

@@ -53,6 +53,27 @@ def send_verification_email(to_email: str, token: str) -> None:
     _send(to_email, "Verify your EchoLearn email", html)
 
 
+def send_existing_account_email(to_email: str) -> None:
+    """Sent when someone signs up with an address that already has a verified account.
+    The signup page shows the same message either way, so only the address's owner learns
+    that the account exists, and they get a way back in instead of silence."""
+    html = _wrap_email(
+        "You already have an account",
+        f"""
+        <p style="font-size:14px;line-height:1.5;">
+          Someone (probably you) just tried to sign up for EchoLearn with this email address,
+          but it already has an account. You don't need to sign up again.
+        </p>
+        {_button(f"{settings.FRONTEND_URL}/login", "Log in")}
+        <p style="font-size:14px;line-height:1.5;">
+          Forgot your password?
+          <a href="{settings.FRONTEND_URL}/forgot-password" style="color:#111827;">Reset it here</a>.
+        </p>
+        """,
+    )
+    _send(to_email, "You already have an EchoLearn account", html)
+
+
 def send_password_reset_email(to_email: str, token: str) -> None:
     link = f"{settings.FRONTEND_URL}/reset-password?token={token}"
     html = _wrap_email(

@@ -30,6 +30,7 @@ from app.voice.clone_model import (
     CloneUnavailableError,
     create_fish_voice_model,
     synthesize_via_fish,
+    worker_setup_problem,
 )
 
 logger = logging.getLogger(__name__)
@@ -107,6 +108,13 @@ def process_clone_job(job_id: uuid.UUID, text: str) -> None:
         job.status = VoiceCloneJobStatus.processing
         db.commit()
 
+        # The service may have become unusable (e.g. account out of credit) after this job
+        # was queued: fail fast with a clear message instead of calling it again.
+        problem = worker_setup_problem()
+        if problem:
+            _fail(db, job, problem)
+            return
+
         try:
             user = db.query(User).filter(User.id == job.user_id).first()
             if not user:
@@ -159,7 +167,7 @@ def process_clone_job(job_id: uuid.UUID, text: str) -> None:
         except CloneUnavailableError as exc:
             logger.warning("Clone job %s: worker unavailable: %s", job_id, exc)
             db.rollback()
-            _fail(db, job, str(exc))
+            _fail(db, job, exc.user_message)
         except CloneFailedError as exc:
             logger.error("Clone job %s failed: %s", job_id, exc)
             db.rollback()

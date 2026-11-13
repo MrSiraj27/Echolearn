@@ -3,7 +3,6 @@
 import { use, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, CheckCircle2 } from "lucide-react";
-import Sidebar from "@/components/Sidebar";
 import { api, ApiError } from "@/lib/api";
 import { SessionContentResponse, StudyPlanDetailResponse, StudySessionPublic } from "@/lib/types";
 
@@ -78,8 +77,7 @@ export default function SessionContentPage({
 
   return (
     <>
-      <Sidebar />
-      <main className="flex-1 min-w-0 overflow-y-auto bg-white dark:bg-neutral-950">
+      <main className="flex-1 min-w-0 overflow-y-auto">
         <div className="max-w-2xl mx-auto px-6 py-10">
           <button
             onClick={() => router.push(`/study-plans/${planId}`)}

@@ -2,7 +2,8 @@
 
 import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
-import { X, ArrowLeft, ArrowRight } from "lucide-react";
+import Link from "next/link";
+import { X, ArrowLeft, ArrowRight, BookOpen } from "lucide-react";
 import { api, ApiError } from "@/lib/api";
 import { Citation } from "@/lib/types";
 
@@ -90,6 +91,15 @@ export default function SourceViewer({ citation, onClose }: { citation: Citation
               </p>
             )}
           </div>
+          {citation.document_id && (
+            <Link
+              href={`/read/${citation.document_id}?page=${page}`}
+              className="ml-auto shrink-0 flex items-center gap-1 rounded-md border border-neutral-200 dark:border-neutral-700 px-2 py-1 text-xs text-neutral-600 dark:text-neutral-300 hover:bg-neutral-50 dark:hover:bg-neutral-800"
+            >
+              <BookOpen className="h-3.5 w-3.5" />
+              Open in reader
+            </Link>
+          )}
           <button
             onClick={onClose}
             className="text-neutral-400 hover:text-neutral-700 dark:hover:text-neutral-200 shrink-0 ml-2"

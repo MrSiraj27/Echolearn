@@ -70,6 +70,15 @@ for a demo, not for production.
       so verification/reset emails reach real users, not just your own inbox.
 - [ ] Confirm `alembic upgrade head` ran successfully against the production database
       (check the Dockerfile's startup command logs).
+- [ ] Confirm migration `0019_reader_feedback` is applied (`select version_num from
+      alembic_version` → `0019_reader_feedback`). It only adds columns/tables; no data changes.
+      The API also runs `alembic upgrade head` on startup.
+- [ ] `GET /health` returns `{"status": "ok"}` (use it as the host's health check path).
+- [ ] Open a processed PDF in the reader (`/read/<id>`) and use **Explain with AI** once,
+      and switch to **Original**: it streams the file from `GET /documents/<id>/media`
+      with the user's token, so `NEXT_PUBLIC_API_URL` must be the public backend URL.
+- [ ] Never run `scripts/seed_test_user.py` against production (it refuses non-localhost
+      databases, but don't rely on that alone).
 - [ ] Rotate `JWT_SECRET`, `GROQ_API_KEY`, `GEMINI_API_KEY`, `RESEND_API_KEY` if they
       were ever committed or shared — set them only via each host's env var UI, never
       in a committed `.env` file.

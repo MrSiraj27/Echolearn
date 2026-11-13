@@ -1,7 +1,11 @@
 /** Decode any browser-playable audio blob (MediaRecorder webm/ogg, mp3, m4a, wav...) and
  * re-encode it as 24 kHz mono 16-bit PCM WAV, which is what the voice-cloning backend
- * accepts. Returns the WAV and its duration in seconds. */
-export async function blobToWav(blob: Blob, targetRate = 24000): Promise<{ wav: Blob; seconds: number }> {
+ * accepts. Returns the WAV, its duration in seconds, and `rms` (root-mean-square level,
+ * 0..1) so callers can reject a silent or near-silent recording before uploading it. */
+export async function blobToWav(
+  blob: Blob,
+  targetRate = 24000,
+): Promise<{ wav: Blob; seconds: number; rms: number }> {
   const arrayBuffer = await blob.arrayBuffer();
   const AudioCtx: typeof AudioContext =
     window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
@@ -42,9 +46,12 @@ export async function blobToWav(blob: Blob, targetRate = 24000): Promise<{ wav: 
   view.setUint16(34, 16, true);
   writeStr(36, "data");
   view.setUint32(40, samples.length * 2, true);
+  let sumSquares = 0;
   for (let i = 0; i < samples.length; i++) {
     const s = Math.max(-1, Math.min(1, samples[i]));
+    sumSquares += s * s;
     view.setInt16(44 + i * 2, s < 0 ? s * 0x8000 : s * 0x7fff, true);
   }
-  return { wav: new Blob([buffer], { type: "audio/wav" }), seconds };
+  const rms = Math.sqrt(sumSquares / Math.max(1, samples.length));
+  return { wav: new Blob([buffer], { type: "audio/wav" }), seconds, rms };
 }

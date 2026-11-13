@@ -1,7 +1,8 @@
 import uuid
 from datetime import datetime
+from typing import Literal
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from app.core.languages import ExplainMode, Language
 from app.models.message import MessageRole
@@ -53,8 +54,20 @@ class MessageResponse(BaseModel):
     content_type: str = "text"
     created_at: datetime
     translations: list[TranslationItem] = []
+    # This user's own rating of an assistant answer: helpful | not_helpful | incorrect.
+    feedback: str | None = None
 
     model_config = {"from_attributes": True}
+
+
+class MessageFeedbackRequest(BaseModel):
+    rating: Literal["helpful", "not_helpful", "incorrect"]
+    comment: str | None = Field(default=None, max_length=1000)
+
+
+class MessageFeedbackResponse(BaseModel):
+    message_id: uuid.UUID
+    rating: str | None = None
 
 
 class DiagramRequest(BaseModel):

@@ -3,7 +3,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { AlertTriangle, ArrowLeft, Download, Loader2, RefreshCw, Trash2 } from "lucide-react";
-import Sidebar from "@/components/Sidebar";
 import RevisionSheetPreview from "@/components/RevisionSheetPreview";
 import { api, ApiError } from "@/lib/api";
 import { LANGUAGE_NAMES, downloadSheetPdf } from "@/lib/revision";
@@ -152,9 +151,8 @@ export default function RevisionSheetPage() {
 
   return (
     <>
-      <Sidebar />
-      <main className="flex-1 min-w-0 overflow-y-auto bg-white dark:bg-neutral-950">
-        <div className="max-w-2xl mx-auto px-4 sm:px-6 py-8 pt-16 lg:pt-8">
+      <main className="flex-1 min-w-0 overflow-y-auto">
+        <div className="max-w-2xl mx-auto px-4 sm:px-6 py-8 pt-8">
           <button
             onClick={() => router.push("/revision-sheets")}
             className="flex items-center gap-1 text-xs text-neutral-400 hover:text-neutral-700 dark:hover:text-neutral-200 mb-6"

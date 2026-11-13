@@ -5,6 +5,27 @@
 
 @custom-variant dark (&:is(.dark *));
 
+/* EchoLearn design tokens, from DESIGN.md: warm cream canvas, warm ink, coral accent used
+   sparingly, warm near-black dark surfaces, serif display headings. Overriding the neutral
+   ramp re-themes every screen that uses neutral-* utilities in one place. */
+@theme {
+  --color-neutral-50: #faf9f5;   /* canvas */
+  --color-neutral-100: #f5f0e8;  /* surface-soft: app floor */
+  --color-neutral-200: #e6dfd8;  /* hairline */
+  --color-neutral-300: #d3ccc1;
+  --color-neutral-400: #a09d96;  /* muted-soft (on dark) */
+  --color-neutral-500: #8e8b82;  /* muted-soft */
+  --color-neutral-600: #6c6a64;  /* muted */
+  --color-neutral-700: #3d3d3a;  /* body */
+  --color-neutral-800: #2e2c28;  /* dark hairline */
+  --color-neutral-900: #1f1e1b;  /* surface-dark-soft: dark cards */
+  --color-neutral-950: #181715;  /* surface-dark: dark floor, nav */
+  --color-coral: #cc785c;        /* primary CTA */
+  --color-coral-active: #a9583e;
+  --color-coral-soft: #f6e6df;
+  --font-serif: var(--font-display), "Source Serif 4", Georgia, "Times New Roman", serif;
+}
+
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);

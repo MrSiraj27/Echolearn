@@ -64,6 +64,8 @@ export default function ListenButton({ text, messageId }: { text: string; messag
   } = useSpeech();
   const [state, setState] = useState<PlaybackState>("idle");
   const [limitMessage, setLimitMessage] = useState<string | null>(null);
+  // Neutral note (not an error): e.g. My Voice was unavailable so the standard voice was used.
+  const [fallbackNote, setFallbackNote] = useState<string | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const objectUrlRef = useRef<string | null>(null);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -180,7 +182,17 @@ export default function ListenButton({ text, messageId }: { text: string; messag
           }
         } else if (status.status === "failed") {
           if (pollRef.current) clearInterval(pollRef.current);
-          showError(status.error_message || "Voice cloning failed.");
+          // If the voice service itself is unavailable (e.g. out of capacity), read the
+          // answer with the standard voice instead of leaving the user with an error.
+          const availability = await api
+            .get<{ available: boolean; detail: string | null }>("/voice/clone-availability", { auth: true })
+            .catch(() => null);
+          if (availability && !availability.available) {
+            setFallbackNote(availability.detail || status.error_message);
+            await playStandardVoice();
+          } else {
+            showError(status.error_message || "Voice cloning failed.");
+          }
         } else {
           errors = 0;
         }
@@ -198,6 +210,7 @@ export default function ListenButton({ text, messageId }: { text: string; messag
   async function handleMyVoiceClick() {
     setSpeakingId(messageId);
     setLimitMessage(null);
+    setFallbackNote(null);
     const cached = audioCache.get(cloneKey(messageId));
     if (cached) {
       await playBlob(cached);
@@ -213,7 +226,10 @@ export default function ListenButton({ text, messageId }: { text: string; messag
         pollCloneStatus(result.job_id);
       }
     } catch (err) {
-      if (err instanceof ApiError && [400, 403, 404, 429, 503].includes(err.status)) {
+      if (err instanceof ApiError && err.status === 503) {
+        setFallbackNote(err.detail);
+        await playStandardVoice();
+      } else if (err instanceof ApiError && [400, 403, 404, 429].includes(err.status)) {
         showError(err.detail);
       } else {
         showError("Couldn't reach the voice service. Please try again.");
@@ -233,7 +249,11 @@ export default function ListenButton({ text, messageId }: { text: string; messag
       await handleMyVoiceClick();
       return;
     }
+    setFallbackNote(null);
+    await playStandardVoice();
+  }
 
+  async function playStandardVoice() {
     // Mobile browsers (notably iOS Safari) only allow speechSynthesis.speak() when it's
     // called synchronously inside the click handler — an awaited fetch first (even one
     // that ultimately 503s) breaks that "user gesture" chain and the voice silently never
@@ -334,6 +354,11 @@ export default function ListenButton({ text, messageId }: { text: string; messag
 
       {isCloning && (
         <span className="text-[11px] text-neutral-400">speaking this in your voice…</span>
+      )}
+      {isActive && fallbackNote && state !== "limited" && (
+        <span className="text-[11px] text-neutral-500 dark:text-neutral-400" title={fallbackNote}>
+          My Voice unavailable, using standard voice
+        </span>
       )}
       {isActive && state === "limited" && limitMessage && (
         <span className="text-xs text-red-600 dark:text-red-400">{limitMessage}</span>

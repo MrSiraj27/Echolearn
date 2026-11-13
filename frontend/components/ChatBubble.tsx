@@ -4,12 +4,13 @@ import { useRef, useState } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { motion, AnimatePresence } from "framer-motion";
-import { Copy, Check, RotateCcw, BookOpen, Sparkles, BookmarkPlus, BookmarkCheck, Loader2, GraduationCap } from "lucide-react";
-import Link from "next/link";
+import { Copy, Check, RotateCcw, BookOpen, Sparkles, BookmarkPlus, BookmarkCheck, Loader2, GraduationCap, Languages } from "lucide-react";
 import { AppLanguage, ChatMessage, ExplainLanguage, ExplainMode } from "@/lib/types";
 import { useChatStore } from "@/lib/chat-store";
 import UrduSpeakButton from "@/components/UrduSpeakButton";
 import { LANGUAGE_LABELS, LanguageTabs, TranslationBody, TranslationSkeleton } from "@/components/LanguageExplain";
+import AnswerFeedback from "@/components/AnswerFeedback";
+import MoreMenu from "@/components/ui/MoreMenu";
 import ListenButton from "@/components/ListenButton";
 import ExplainModal from "@/components/ExplainModal";
 import SourceViewer from "@/components/SourceViewer";
@@ -380,7 +381,8 @@ export default function ChatBubble({
           </div>
         )}
 
-        <div className="flex items-center gap-3 mt-1.5 text-neutral-400 dark:text-neutral-500">
+        {/* Main actions stay visible; everything else is in the labelled "More" menu. */}
+        <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1.5 text-neutral-500 dark:text-neutral-400">
           {activeLanguage === "en" && <ListenButton text={stripMarkdown(message.content)} messageId={message.id} />}
           {activeLanguage === "ur" && shownTranslation && (
             <UrduSpeakButton text={stripMarkdown(shownTranslation.text)} messageId={message.id} />
@@ -388,90 +390,72 @@ export default function ChatBubble({
           {/* Roman Urdu has no Listen button: an English voice would mispronounce it. */}
           <button
             onClick={handleCopy}
-            className="text-xs hover:text-neutral-700 dark:hover:text-neutral-300 transition-colors inline-flex items-center gap-1"
+            className="inline-flex items-center gap-1 rounded-md px-1.5 py-1 text-xs transition-colors hover:bg-neutral-100 hover:text-neutral-800 dark:hover:bg-neutral-800 dark:hover:text-neutral-200"
             aria-label="Copy message"
           >
             {copied ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
             {copied ? "Copied" : "Copy"}
           </button>
-          {chatId && (
-            <>
-              <button
-                onClick={() => handleSelectLanguage("ur")}
-                disabled={loadingLanguage !== null}
-                className={`text-xs transition-colors inline-flex items-center gap-1 disabled:opacity-60 ${
-                  activeLanguage === "ur"
-                    ? "text-neutral-900 dark:text-neutral-100 font-medium"
-                    : "hover:text-neutral-700 dark:hover:text-neutral-300"
-                }`}
-                aria-label="Explain in Urdu"
-                title="Explain this answer in Urdu"
-              >
-                {loadingLanguage === "ur" && <Loader2 className="h-3 w-3 animate-spin" />}
-                {LANGUAGE_LABELS.ur}
-              </button>
-              <button
-                onClick={() => handleSelectLanguage("roman_ur")}
-                disabled={loadingLanguage !== null}
-                className={`text-xs transition-colors inline-flex items-center gap-1 disabled:opacity-60 ${
-                  activeLanguage === "roman_ur"
-                    ? "text-neutral-900 dark:text-neutral-100 font-medium"
-                    : "hover:text-neutral-700 dark:hover:text-neutral-300"
-                }`}
-                aria-label="Explain in Roman Urdu"
-                title="Explain this answer in Roman Urdu (Urdu in English letters)"
-              >
-                {loadingLanguage === "roman_ur" && <Loader2 className="h-3 w-3 animate-spin" />}
-                Roman
-              </button>
-            </>
-          )}
-          {onRegenerate && (
-            <button
-              onClick={onRegenerate}
-              className="text-xs hover:text-neutral-700 dark:hover:text-neutral-300 transition-colors inline-flex items-center gap-1"
-            >
-              <RotateCcw className="h-3.5 w-3.5" />
-              Regenerate
-            </button>
-          )}
-          {chatId && (
-            <Link
-              href={`/tutor?chat=${chatId}&topic=${encodeURIComponent(
-                (precedingQuestion || stripMarkdown(message.content)).slice(0, 120)
-              )}`}
-              className="text-xs hover:text-neutral-700 dark:hover:text-neutral-300 transition-colors inline-flex items-center gap-1"
-              title="Start a tutor session on this topic"
-            >
-              <GraduationCap className="h-3.5 w-3.5" />
-              Teach me this
-            </Link>
-          )}
-          {flashcardDocumentId && (
-            <button
-              onClick={handleSaveFlashcard}
-              disabled={savingCard || cardSaved}
-              className="text-xs hover:text-neutral-700 dark:hover:text-neutral-300 transition-colors inline-flex items-center gap-1 disabled:opacity-70"
-              aria-label="Save as flashcard"
-              title="Save this answer as a spaced-repetition flashcard"
-            >
-              {cardSaved ? (
-                <BookmarkCheck className="h-3.5 w-3.5" />
-              ) : (
-                <BookmarkPlus className="h-3.5 w-3.5" />
-              )}
-              {cardSaved ? "Saved" : "Save as flashcard"}
-            </button>
-          )}
           {citations.length > 0 && (
             <button
               onClick={() => setSourcesOpen((v) => !v)}
-              className="text-xs hover:text-neutral-700 dark:hover:text-neutral-300 transition-colors inline-flex items-center gap-1"
+              aria-expanded={sourcesOpen}
+              className="inline-flex items-center gap-1 rounded-md px-1.5 py-1 text-xs transition-colors hover:bg-neutral-100 hover:text-neutral-800 dark:hover:bg-neutral-800 dark:hover:text-neutral-200"
             >
               <BookOpen className="h-3.5 w-3.5" />
               Sources ({citations.length})
             </button>
           )}
+          {chatId && !message.id.startsWith("assistant-") && !message.id.startsWith("temp-") && (
+            <AnswerFeedback chatId={chatId} messageId={message.id} initial={message.feedback ?? null} />
+          )}
+          <MoreMenu
+            items={[
+              ...(chatId
+                ? [
+                    {
+                      key: "ur",
+                      label: "Explain in Urdu",
+                      icon: Languages,
+                      busy: loadingLanguage === "ur",
+                      disabled: loadingLanguage !== null,
+                      onClick: () => void handleSelectLanguage("ur"),
+                    },
+                    {
+                      key: "roman",
+                      label: "Explain in Roman Urdu",
+                      hint: "Urdu written in English letters",
+                      icon: Languages,
+                      busy: loadingLanguage === "roman_ur",
+                      disabled: loadingLanguage !== null,
+                      onClick: () => void handleSelectLanguage("roman_ur"),
+                    },
+                    {
+                      key: "teach",
+                      label: "Teach me this",
+                      hint: "Start a tutor session on this topic",
+                      icon: GraduationCap,
+                      href: `/tutor?chat=${chatId}&topic=${encodeURIComponent(
+                        (precedingQuestion || stripMarkdown(message.content)).slice(0, 120)
+                      )}`,
+                    },
+                  ]
+                : []),
+              ...(flashcardDocumentId
+                ? [
+                    {
+                      key: "card",
+                      label: cardSaved ? "Saved as flashcard" : "Save as flashcard",
+                      icon: cardSaved ? BookmarkCheck : BookmarkPlus,
+                      busy: savingCard,
+                      disabled: savingCard || cardSaved,
+                      onClick: () => void handleSaveFlashcard(),
+                    },
+                  ]
+                : []),
+              ...(onRegenerate ? [{ key: "regen", label: "Regenerate answer", icon: RotateCcw, onClick: onRegenerate }] : []),
+            ]}
+          />
         </div>
 
         {pendingLanguage && !loadingLanguage && (

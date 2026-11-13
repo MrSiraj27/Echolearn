@@ -14,6 +14,8 @@ the functions here raise CloneUnavailableError/CloneFailedError and the routes a
 Nothing silently substitutes a stock voice for a "cloned" one.
 """
 import logging
+import threading
+import time
 
 import httpx
 
@@ -25,8 +27,28 @@ FISH_API_BASE = "https://api.fish.audio"
 FISH_MODEL_HEADER = "s2.1-pro-free"  # no hard usage cap under Fish Audio's fair-use policy
 
 
+# Shown to users when the voice service can't be used. Never put provider/account details
+# here: those go to the server log for the admin.
+USER_UNAVAILABLE_MESSAGE = (
+    "My Voice isn't available right now, so the standard voice is used instead. Please try My Voice again later."
+)
+NOT_CONFIGURED_MESSAGE = "Voice cloning isn't set up on this server."
+
+# After an account-level failure (bad key, out of credit/limit) every request would fail the
+# same way, so stop calling the API for a while instead of failing each click. Transient
+# problems (rate limit, outage) pause briefly.
+PAUSE_SECONDS = {401: 30 * 60, 402: 30 * 60, 403: 30 * 60, 429: 60, 503: 30}
+_pause_lock = threading.Lock()
+_paused_until = 0.0
+
+
 class CloneUnavailableError(Exception):
-    """The API isn't usable right now (not configured, auth/quota problem, unreachable)."""
+    """The API isn't usable right now (not configured, auth/quota problem, unreachable).
+    `str(exc)` is the admin-facing detail; `user_message` is safe to show to users."""
+
+    def __init__(self, detail: str, user_message: str = USER_UNAVAILABLE_MESSAGE):
+        super().__init__(detail)
+        self.user_message = user_message
 
 
 class CloneFailedError(Exception):
@@ -37,8 +59,30 @@ def worker_setup_problem() -> str | None:
     """None if voice cloning is usable; otherwise a human-readable reason. Named
     worker_setup_problem for compatibility with the route/schema code that calls it."""
     if not settings.FISH_AUDIO_API_KEY:
-        return "Voice cloning isn't configured on this server (FISH_AUDIO_API_KEY is not set)."
+        return NOT_CONFIGURED_MESSAGE
+    if paused_for() > 0:
+        return USER_UNAVAILABLE_MESSAGE
     return None
+
+
+def paused_for() -> float:
+    """Seconds left before the API will be tried again (0 = not paused)."""
+    with _pause_lock:
+        return max(0.0, _paused_until - time.monotonic())
+
+
+def _pause(seconds: float, reason: str) -> None:
+    global _paused_until
+    with _pause_lock:
+        _paused_until = max(_paused_until, time.monotonic() + seconds)
+    logger.error("Voice cloning paused for %ds: %s", int(seconds), reason)
+
+
+def reset_pause() -> None:
+    """For tests, and after an admin fixes the account (or just restart the API)."""
+    global _paused_until
+    with _pause_lock:
+        _paused_until = 0.0
 
 
 def load_clone_model() -> None:
@@ -59,7 +103,7 @@ def prepare_worker() -> None:
     CloneUnavailableError if the API key isn't configured."""
     problem = worker_setup_problem()
     if problem:
-        raise CloneUnavailableError(problem)
+        raise CloneUnavailableError(problem, user_message=problem)
 
 
 def _headers(extra: dict | None = None) -> dict:
@@ -78,8 +122,12 @@ def _raise_for_response(resp: httpx.Response, context: str) -> None:
         detail = body.get("message") or body.get("reason") or str(body)
     except ValueError:
         detail = resp.text[:300]
-    if resp.status_code in (401, 402, 429, 503):
-        raise CloneUnavailableError(f"Fish Audio {context} unavailable ({resp.status_code}): {detail}"[:300])
+    if resp.status_code in PAUSE_SECONDS:
+        # 401 bad key, 402/403 out of credit or over the account's model limit, 429 rate
+        # limited, 503 outage: none of these are fixed by the user retrying.
+        message = f"Fish Audio {context} unavailable ({resp.status_code}): {detail}"[:300]
+        _pause(PAUSE_SECONDS[resp.status_code], message)
+        raise CloneUnavailableError(message)
     raise CloneFailedError(f"Fish Audio {context} failed ({resp.status_code}): {detail}"[:300])
 
 

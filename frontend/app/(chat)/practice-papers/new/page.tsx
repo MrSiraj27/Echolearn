@@ -3,7 +3,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, Check, Loader2, Plus, Trash2, Upload, X } from "lucide-react";
-import Sidebar from "@/components/Sidebar";
 import { api, ApiError } from "@/lib/api";
 import { useChatStore } from "@/lib/chat-store";
 import { PATTERN_BADGE, PRACTICE_DISCLAIMER, QUESTION_TYPE_LABELS, uploadPastPaper } from "@/lib/practice";
@@ -307,8 +306,7 @@ export default function NewPracticePaperPage() {
 
   return (
     <>
-      <Sidebar />
-      <main className="flex-1 min-w-0 overflow-y-auto bg-white dark:bg-neutral-950">
+      <main className="flex-1 min-w-0 overflow-y-auto">
         <div className="max-w-2xl mx-auto px-6 py-10">
           <button
             onClick={() => (step > 1 && !generating ? setStep((step - 1) as Step) : router.back())}

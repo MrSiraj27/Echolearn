@@ -91,9 +91,7 @@ export default function MoveToFolderMenu({
           setOpen((v) => !v);
         }}
         disabled={moving}
-        className={`${
-          moving ? "opacity-100" : "opacity-0 group-hover:opacity-100"
-        } text-neutral-400 hover:text-neutral-700 dark:hover:text-neutral-200 p-0.5 transition-opacity`}
+        className="text-neutral-400 hover:text-neutral-700 dark:hover:text-neutral-200 p-0.5 disabled:opacity-60"
         aria-label="Move to folder"
       >
         {moving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <FolderInput className="h-3.5 w-3.5" />}

@@ -21,6 +21,8 @@ from app.chats.schemas import (
     ExplainResponse,
     InfographicRequest,
     InfographicResponse,
+    MessageFeedbackRequest,
+    MessageFeedbackResponse,
     MessageResponse,
     SendMessageRequest,
     TranslationItem,
@@ -33,6 +35,7 @@ from app.models import (
     Document,
     DocumentStatus,
     Message,
+    MessageFeedback,
     MessageRole,
     MessageTranslation,
     QueryLog,
@@ -248,12 +251,79 @@ def get_chat_messages(
                 )
             )
 
+    feedback_by_message: dict[uuid.UUID, str] = {}
+    if messages:
+        feedback_rows = (
+            db.query(MessageFeedback.message_id, MessageFeedback.rating)
+            .filter(
+                MessageFeedback.user_id == current_user.id,
+                MessageFeedback.message_id.in_([m.id for m in messages]),
+            )
+            .all()
+        )
+        feedback_by_message = {row.message_id: row.rating for row in feedback_rows}
+
     response = []
     for m in messages:
         item = MessageResponse.model_validate(m)
         item.translations = translations_by_message.get(m.id, [])
+        item.feedback = feedback_by_message.get(m.id)
         response.append(item)
     return response
+
+
+def _get_assistant_message(db: Session, chat: Chat, message_id: uuid.UUID) -> Message:
+    message = db.query(Message).filter(Message.id == message_id, Message.chat_id == chat.id).first()
+    if not message:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Message not found.")
+    if message.role != MessageRole.assistant:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Only answers can be rated.")
+    return message
+
+
+@router.put("/{chat_id}/messages/{message_id}/feedback", response_model=MessageFeedbackResponse)
+def set_message_feedback(
+    chat_id: uuid.UUID,
+    message_id: uuid.UUID,
+    payload: MessageFeedbackRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+    _: None = Depends(block_if_impersonating),
+):
+    """Rate an answer (helpful / not helpful / incorrect). One rating per user per answer;
+    rating again replaces it. Used to evaluate retrieval and answer quality."""
+    chat = _get_owned_chat(db, chat_id, current_user.id)
+    message = _get_assistant_message(db, chat, message_id)
+    row = (
+        db.query(MessageFeedback)
+        .filter(MessageFeedback.message_id == message.id, MessageFeedback.user_id == current_user.id)
+        .first()
+    )
+    comment = (payload.comment or "").strip() or None
+    if row:
+        row.rating = payload.rating
+        row.comment = comment
+    else:
+        db.add(MessageFeedback(message_id=message.id, user_id=current_user.id, rating=payload.rating, comment=comment))
+    db.commit()
+    return MessageFeedbackResponse(message_id=message.id, rating=payload.rating)
+
+
+@router.delete("/{chat_id}/messages/{message_id}/feedback", response_model=MessageFeedbackResponse)
+def clear_message_feedback(
+    chat_id: uuid.UUID,
+    message_id: uuid.UUID,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+    _: None = Depends(block_if_impersonating),
+):
+    chat = _get_owned_chat(db, chat_id, current_user.id)
+    message = _get_assistant_message(db, chat, message_id)
+    db.query(MessageFeedback).filter(
+        MessageFeedback.message_id == message.id, MessageFeedback.user_id == current_user.id
+    ).delete()
+    db.commit()
+    return MessageFeedbackResponse(message_id=message.id, rating=None)
 
 
 @router.post("/{chat_id}/message")

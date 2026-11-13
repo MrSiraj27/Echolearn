@@ -2,9 +2,10 @@ import logging
 import time
 
 import pdfplumber
+from pdfminer.pdfdocument import PDFEncryptionError
 
 from app.documents.parsers.tables import rows_to_table_block
-from app.documents.parsers.types import ParsedPage
+from app.documents.parsers.types import DocumentParseError, ParsedPage
 from app.documents.parsers.image import ocr_image
 
 logger = logging.getLogger(__name__)
@@ -24,10 +25,35 @@ OCR_RESOLUTION = 150
 OCR_TIME_BUDGET_SECONDS = 240
 
 
+def _root_cause(exc: BaseException) -> BaseException:
+    """pdfplumber wraps pdfminer's exceptions in PdfminerException(original)."""
+    if exc.args and isinstance(exc.args[0], BaseException):
+        return exc.args[0]
+    return exc.__cause__ or exc
+
+
 def parse_pdf(file_path: str) -> list[ParsedPage]:
+    try:
+        return _parse_pdf(file_path)
+    except DocumentParseError:
+        raise
+    except Exception as exc:
+        if isinstance(_root_cause(exc), PDFEncryptionError):
+            raise DocumentParseError(
+                "This PDF is password-protected. Remove the password (for example, print it to a new PDF) and upload it again."
+            ) from exc
+        logger.warning("Could not open PDF %s: %s", file_path, _root_cause(exc))
+        raise DocumentParseError(
+            "This PDF looks damaged or isn't a real PDF, so we couldn't open it. Try re-saving or exporting it again."
+        ) from exc
+
+
+def _parse_pdf(file_path: str) -> list[ParsedPage]:
     pages: list[ParsedPage] = []
 
     with pdfplumber.open(file_path) as pdf:
+        if not pdf.pages:
+            raise DocumentParseError("This PDF has no pages.")
         texts = [(page.extract_text() or "").strip() for page in pdf.pages]
         sparse = [i for i, text in enumerate(texts) if len(text) < MIN_TEXT_LENGTH_BEFORE_OCR]
         is_scanned = bool(texts) and len(sparse) / len(texts) >= SCANNED_PAGE_RATIO

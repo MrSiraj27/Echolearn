@@ -2,7 +2,7 @@ import enum
 import uuid
 from datetime import datetime, timezone
 
-from sqlalchemy import JSON, DateTime, Enum, ForeignKey, Integer, String, Text
+from sqlalchemy import JSON, BigInteger, DateTime, Enum, ForeignKey, Integer, String, Text
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -29,6 +29,9 @@ class Document(Base):
         Enum(DocumentStatus, name="document_status"), default=DocumentStatus.uploaded
     )
     page_count: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    # Why processing failed, in words the user can act on (None unless status == failed).
+    error_message: Mapped[str | None] = mapped_column(Text, nullable=True)
+    file_size: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
     summary: Mapped[str | None] = mapped_column(Text, nullable=True)
     suggested_questions: Mapped[list | None] = mapped_column(JSON, nullable=True)
     folder_id: Mapped[uuid.UUID | None] = mapped_column(

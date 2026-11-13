@@ -22,7 +22,7 @@ export default function ImpersonatePage() {
         // ignore
       }
     }
-    router.replace("/chat");
+    router.replace("/dashboard");
   }, [params, login, router]);
 
   return null;

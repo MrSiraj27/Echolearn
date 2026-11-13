@@ -1,3 +1,5 @@
+import threading
+import time
 from datetime import datetime, timedelta, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
@@ -16,7 +18,7 @@ from app.auth.schemas import (
     VerifyEmailResponse,
 )
 from app.core.database import get_db
-from app.core.email import send_password_reset_email, send_verification_email
+from app.core.email import send_existing_account_email, send_password_reset_email, send_verification_email
 from app.core.rate_limit import check_rate_limit
 from app.core.time_utils import is_expired
 from app.core.security import (
@@ -34,6 +36,24 @@ router = APIRouter(prefix="/auth", tags=["auth"])
 GENERIC_SIGNUP_MESSAGE = "If that email is available, we've sent a verification link. Please check your inbox."
 GENERIC_FORGOT_PASSWORD_MESSAGE = "If that email exists, we've sent a password reset link."
 REFRESH_COOKIE_NAME = "refresh_token"
+
+# "You already have an account" emails go out at most once per address per window. The
+# throttle is silent (no error), because an error only for existing accounts would itself
+# reveal which addresses are registered.
+EXISTING_ACCOUNT_EMAIL_INTERVAL_SECONDS = 15 * 60
+_existing_account_last_sent: dict[str, float] = {}
+_existing_account_lock = threading.Lock()
+
+
+def _should_send_existing_account_email(email: str) -> bool:
+    key = email.strip().lower()
+    now = time.monotonic()
+    with _existing_account_lock:
+        last = _existing_account_last_sent.get(key)
+        if last is not None and now - last < EXISTING_ACCOUNT_EMAIL_INTERVAL_SECONDS:
+            return False
+        _existing_account_last_sent[key] = now
+        return True
 
 
 @router.post("/signup", response_model=SignupResponse, status_code=status.HTTP_201_CREATED)
@@ -55,6 +75,9 @@ def signup(payload: SignupRequest, db: Session = Depends(get_db)):
             ))
             db.commit()
             send_verification_email(existing.email, token_value)
+        elif _should_send_existing_account_email(existing.email):
+            # Already verified: tell the owner (by email only) how to get back in.
+            send_existing_account_email(existing.email)
         return SignupResponse(message=GENERIC_SIGNUP_MESSAGE)
 
     user = User(

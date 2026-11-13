@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { UserCog } from "lucide-react";
 import { useAuth } from "@/lib/auth-context";
+import AppShell from "@/components/shell/AppShell";
 import { IMPERSONATION_EMAIL_KEY } from "./impersonate/page";
 
 export default function ChatSectionLayout({ children }: { children: React.ReactNode }) {
@@ -60,7 +61,7 @@ export default function ChatSectionLayout({ children }: { children: React.ReactN
           </button>
         </div>
       )}
-      <div className="flex flex-1 min-h-0">{children}</div>
+      <AppShell>{children}</AppShell>
     </div>
   );
 }

@@ -108,3 +108,15 @@ def update_my_preferences(
     current_user.preferred_language = payload.preferred_language.value
     db.commit()
     return PreferencesResponse(preferred_language=payload.preferred_language)
+
+
+@router.get("/me")
+def get_me(current_user: User = Depends(get_current_user)):
+    """The signed-in user's own profile basics, for the app shell (greeting, avatar, menu)."""
+    return {
+        "id": str(current_user.id),
+        "name": current_user.name,
+        "email": current_user.email,
+        "plan_name": current_user.plan.name if current_user.plan else None,
+        "is_admin": bool(current_user.is_admin),
+    }

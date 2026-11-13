@@ -4,7 +4,6 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, Plus, Calendar } from "lucide-react";
-import Sidebar from "@/components/Sidebar";
 import { api } from "@/lib/api";
 import { StudyPlanResponse } from "@/lib/types";
 
@@ -29,8 +28,7 @@ export default function StudyPlansPage() {
 
   return (
     <>
-      <Sidebar />
-      <main className="flex-1 min-w-0 overflow-y-auto bg-white dark:bg-neutral-950">
+      <main className="flex-1 min-w-0 overflow-y-auto">
         <div className="max-w-2xl mx-auto px-6 py-10">
           <button
             onClick={() => router.back()}

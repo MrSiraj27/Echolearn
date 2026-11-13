@@ -43,6 +43,8 @@ function withTranslation(message: ChatMessage, translation: MessageTranslation):
 interface ChatState {
   chats: ChatItem[];
   documents: DocumentItem[];
+  /** False until the first documents request has finished (success or failure). */
+  documentsLoaded: boolean;
   folders: Folder[];
   workspaces: Workspace[];
   activeChatId: string | null;
@@ -86,6 +88,8 @@ interface ChatState {
   deleteChat: (chatId: string) => Promise<void>;
   deleteDocument: (documentId: string) => Promise<void>;
   pollDocumentStatus: (documentId: string) => void;
+  renameDocument: (documentId: string, filename: string) => Promise<void>;
+  retryDocument: (documentId: string) => Promise<void>;
   addDocumentFromUrl: (url: string, folderId?: string | null) => Promise<string>;
   generateDiagram: (chatId: string, instruction: string) => Promise<{ possible: boolean; error?: string }>;
   generateInfographic: (
@@ -99,6 +103,7 @@ interface ChatState {
 export const useChatStore = create<ChatState>((set, get) => ({
   chats: [],
   documents: [],
+  documentsLoaded: false,
   folders: [],
   workspaces: [],
   activeChatId: null,
@@ -157,8 +162,13 @@ export const useChatStore = create<ChatState>((set, get) => ({
   },
 
   loadDocuments: async () => {
-    const documents = await api.get<DocumentItem[]>("/documents/", { auth: true });
-    set({ documents });
+    try {
+      const documents = await api.get<DocumentItem[]>("/documents/", { auth: true });
+      set({ documents, documentsLoaded: true });
+    } catch (err) {
+      set({ documentsLoaded: true });
+      throw err;
+    }
   },
 
   loadFolders: async () => {
@@ -409,6 +419,23 @@ export const useChatStore = create<ChatState>((set, get) => ({
     set((state) => ({ documents: state.documents.filter((d) => d.id !== documentId) }));
   },
 
+  renameDocument: async (documentId: string, filename: string) => {
+    const updated = await api.patch<DocumentItem>(`/documents/${documentId}`, { filename }, { auth: true });
+    set((state) => ({
+      documents: state.documents.map((d) => (d.id === documentId ? { ...d, filename: updated.filename } : d)),
+    }));
+  },
+
+  retryDocument: async (documentId: string) => {
+    await api.post(`/documents/${documentId}/retry`, {}, { auth: true });
+    set((state) => ({
+      documents: state.documents.map((d) =>
+        d.id === documentId ? { ...d, status: "uploaded", error_message: null } : d
+      ),
+    }));
+    get().pollDocumentStatus(documentId);
+  },
+
   pollDocumentStatus: (documentId: string) => {
     // A failed poll (backend restarting, cold start, brief 503) must not end polling —
     // that left the document showing "processing" forever even after it finished.
@@ -429,7 +456,9 @@ export const useChatStore = create<ChatState>((set, get) => ({
           { auth: true }
         );
         set((state) => ({
-          documents: state.documents.map((d) => (d.id === documentId ? { ...d, status: status.status } : d)),
+          documents: state.documents.map((d) =>
+            d.id === documentId ? { ...d, status: status.status, error_message: status.error_message ?? null } : d
+          ),
         }));
         if (status.status === "ready" || status.status === "failed") {
           clearInterval(interval);

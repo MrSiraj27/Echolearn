@@ -12,6 +12,7 @@ from app.core.config import settings
 from app.core.database import SessionLocal
 from app.documents.object_storage import upload_dir
 from app.documents.parsers import parse_file
+from app.documents.parsers.types import DocumentParseError
 from app.documents.video_url import download_audio_from_url
 from app.models import ContentReport, Document, DocumentStatus
 from app.rag.chunking import chunk_text
@@ -19,6 +20,23 @@ from app.rag.summarizer import generate_document_summary
 from app.rag.vectorstore import add_chunks
 
 logger = logging.getLogger(__name__)
+
+# User-facing failure reasons (Document.error_message). Never put exception text in these.
+MSG_BUSY = "The server was busy for too long, so this wasn't processed. Please try again."
+MSG_UNREADABLE = "We couldn't read this file. It may be damaged or in an unusual format."
+MSG_NO_TEXT = (
+    "We couldn't find any readable text or speech in this file. If it's a scan or photo, try a "
+    "clearer copy; if it's a PDF, try exporting it again with selectable text."
+)
+MSG_INDEXING = "The text was read, but indexing it for search failed. Please try again."
+MSG_DOWNLOAD = "We couldn't download audio from that link. Check that it's public and try again."
+MSG_INTERRUPTED = "Processing was interrupted by a server restart. Please try again."
+
+
+def _fail(db: Session, document: Document, message: str) -> None:
+    document.status = DocumentStatus.failed
+    document.error_message = message
+    db.commit()
 
 # Render's free tier has only 512MB RAM. Parsing/embedding (and Whisper transcription for
 # audio/video) each load models and hold buffers that can spike well past what's safe to
@@ -46,8 +64,7 @@ def _mark_failed_busy(document_id: uuid.UUID) -> None:
     try:
         document = db.query(Document).filter(Document.id == document_id).first()
         if document:
-            document.status = DocumentStatus.failed
-            db.commit()
+            _fail(db, document, MSG_BUSY)
     finally:
         db.close()
     logger.error("Document %s timed out waiting for a busy server to free up", document_id)
@@ -72,14 +89,24 @@ def _run_parsing_task(document_id: uuid.UUID, file_path: str, extension: str) ->
             return
 
         document.status = DocumentStatus.parsing
+        document.error_message = None
         db.commit()
 
         try:
             pages = parse_file(file_path, extension)
+        except DocumentParseError as exc:
+            logger.warning("Document %s could not be parsed: %s", document_id, exc)
+            _fail(db, document, str(exc))
+            return
         except Exception:
             logger.exception("Failed to parse document %s", document_id)
-            document.status = DocumentStatus.failed
-            db.commit()
+            _fail(db, document, MSG_UNREADABLE)
+            return
+
+        # A file with no extractable text would otherwise become "ready" with nothing to
+        # search: every question about it would come back "not found" with no explanation.
+        if not any((p.text or "").strip() or p.tables for p in pages):
+            _fail(db, document, MSG_NO_TEXT)
             return
 
         page_dicts = [
@@ -125,8 +152,7 @@ def _run_parsing_task(document_id: uuid.UUID, file_path: str, extension: str) ->
             add_chunks(document.id, document.user_id, chunks)
         except Exception:
             logger.exception("Failed to embed document %s", document_id)
-            document.status = DocumentStatus.failed
-            db.commit()
+            _fail(db, document, MSG_INDEXING)
             return
 
         document.status = DocumentStatus.embedded
@@ -143,6 +169,7 @@ def _run_parsing_task(document_id: uuid.UUID, file_path: str, extension: str) ->
             logger.exception("Failed to generate summary for document %s", document_id)
 
         document.status = DocumentStatus.ready
+        document.error_message = None
         db.commit()
     finally:
         db.close()
@@ -171,6 +198,7 @@ def _run_url_ingest_task(document_id: uuid.UUID, url: str) -> None:
             return
 
         document.status = DocumentStatus.parsing
+        document.error_message = None
         db.commit()
 
         try:
@@ -178,12 +206,15 @@ def _run_url_ingest_task(document_id: uuid.UUID, url: str) -> None:
             file_path, title = download_audio_from_url(url, dest_dir)
         except Exception:
             logger.exception("Failed to download video from URL for document %s", document_id)
-            document.status = DocumentStatus.failed
-            db.commit()
+            _fail(db, document, MSG_DOWNLOAD)
             return
 
         document.filename = f"{title}.wav"
         document.storage_path = file_path
+        try:
+            document.file_size = Path(file_path).stat().st_size
+        except OSError:
+            pass
         db.commit()
 
         # Same reasoning as the upload path in upload_service.py: back up the downloaded
@@ -213,7 +244,11 @@ def fail_interrupted_documents() -> int:
             # "embedded" means chunking/embedding already succeeded (only the
             # best-effort summary step was interrupted) — the document is actually
             # already searchable, so promote it rather than discarding usable work.
-            doc.status = DocumentStatus.ready if doc.status == DocumentStatus.embedded else DocumentStatus.failed
+            if doc.status == DocumentStatus.embedded:
+                doc.status = DocumentStatus.ready
+            else:
+                doc.status = DocumentStatus.failed
+                doc.error_message = MSG_INTERRUPTED
         db.commit()
         return len(rows)
     except Exception:

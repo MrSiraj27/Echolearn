@@ -85,6 +85,7 @@ async def ingest_upload(
         user_id=current_user.id,
         filename=sanitize_filename(file.filename or "unnamed"),
         file_type=extension,
+        file_size=len(content),
         storage_path="",
         status=DocumentStatus.uploaded,
         folder_id=folder_id,

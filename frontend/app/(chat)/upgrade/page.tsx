@@ -3,7 +3,6 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, Check } from "lucide-react";
-import Sidebar from "@/components/Sidebar";
 import { api } from "@/lib/api";
 
 interface PlanLimits {
@@ -55,8 +54,7 @@ export default function UpgradePage() {
 
   return (
     <>
-      <Sidebar />
-      <main className="flex-1 min-w-0 overflow-y-auto bg-white dark:bg-neutral-950">
+      <main className="flex-1 min-w-0 overflow-y-auto">
         <div className="max-w-4xl mx-auto px-6 py-10">
           <button
             onClick={() => router.back()}

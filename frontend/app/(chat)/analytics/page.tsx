@@ -3,7 +3,6 @@
 import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import { AlertCircle, HelpCircle, FileWarning } from "lucide-react";
-import Sidebar from "@/components/Sidebar";
 import { api } from "@/lib/api";
 import { useChatStore } from "@/lib/chat-store";
 import {
@@ -126,9 +125,8 @@ export default function AnalyticsPage() {
 
   return (
     <>
-      <Sidebar />
-      <main className="flex-1 min-w-0 h-screen overflow-y-auto bg-white dark:bg-neutral-950">
-        <div className="max-w-4xl mx-auto px-6 pt-16 pb-12 lg:pt-10">
+      <main className="flex-1 min-w-0 min-h-0 overflow-y-auto">
+        <div className="max-w-4xl mx-auto px-6 pt-8 pb-12 lg:pt-10">
           <div className="flex items-center justify-between gap-3 mb-6 flex-wrap">
             <div>
               <h1 className="text-xl font-semibold tracking-tight text-neutral-900 dark:text-neutral-100">

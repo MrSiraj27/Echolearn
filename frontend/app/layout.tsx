@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Inter, JetBrains_Mono, Noto_Nastaliq_Urdu } from "next/font/google";
+import { Inter, JetBrains_Mono, Noto_Nastaliq_Urdu, Source_Serif_4 } from "next/font/google";
 import "./globals.css";
 import { AuthProvider } from "@/lib/auth-context";
 import { SpeechProvider } from "@/lib/speech-context";
@@ -9,6 +9,13 @@ const inter = Inter({
   variable: "--font-sans",
   subsets: ["latin"],
   weight: ["400", "500", "600", "700"],
+});
+
+// Serif for display headings and the reader (DESIGN.md: editorial serif display).
+const sourceSerif = Source_Serif_4({
+  variable: "--font-display",
+  subsets: ["latin"],
+  display: "swap",
 });
 
 const jetbrainsMono = JetBrains_Mono({
@@ -35,9 +42,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html
       lang="en"
       suppressHydrationWarning
-      className={`${inter.variable} ${jetbrainsMono.variable} ${notoNastaliqUrdu.variable} h-full antialiased`}
+      className={`${inter.variable} ${sourceSerif.variable} ${jetbrainsMono.variable} ${notoNastaliqUrdu.variable} h-full antialiased`}
     >
-      <body className="min-h-full flex flex-col font-sans bg-white dark:bg-neutral-950">
+      <body className="min-h-full flex flex-col font-sans bg-neutral-100 text-neutral-950 dark:bg-neutral-950 dark:text-neutral-50">
         <ThemeProvider>
           <AuthProvider>
             <SpeechProvider>{children}</SpeechProvider>

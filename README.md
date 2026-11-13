@@ -27,8 +27,8 @@ credentials or external installs that can't be automated:
 - **Python 3.11+** and **Node.js 18+** on your PATH.
 - **PostgreSQL** running locally (or a free hosted instance — see
   [DEPLOYMENT.md](DEPLOYMENT.md)).
-- **[Tesseract OCR](https://github.com/UB-Mannheim/tesseract/wiki)** (for
-  scanned image/PDF text extraction).
+- OCR for scanned PDFs and images uses **RapidOCR** (installed with the Python
+  requirements; no system Tesseract needed).
 - **[FFmpeg](https://ffmpeg.org)** (for audio/video parsing) — either on your
   PATH or pointed to via `FFMPEG_PATH` in `backend/.env`.
 - A free **[Groq](https://console.groq.com)** API key and a free
@@ -100,6 +100,58 @@ venv/bin/python scripts/create_admin.py you@example.com --role superadmin      #
 ```
 
 Log in at http://localhost:3000/admin/login.
+
+### 7. (Optional) A local test account
+
+```bash
+cd backend
+venv\Scripts\python scripts\seed_test_user.py      # Windows
+venv/bin/python scripts/seed_test_user.py          # macOS/Linux
+```
+
+Creates (or resets) a verified throwaway account whose email and password are in
+`scripts/seed_test_user.py`. It refuses to run unless `DATABASE_URL` points at localhost.
+
+## Features at a glance
+
+- **Documents**: upload PDF, DOCX, PPTX, TXT, CSV, images, audio/video, or a video link.
+  Processing runs in the background (`uploaded → parsing → embedded → ready`, or `failed`).
+  A failed document shows *why* (password-protected PDF, damaged file, no readable text,
+  indexing failure, interrupted by a restart) and can be retried from the sidebar. Documents
+  can be renamed, moved to folders, searched and deleted.
+- **Reader** (`/read/<documentId>`): page-by-page text of any processed document, with page
+  list, detected sections, find-in-document, zoom, reading progress and keyboard shortcuts
+  (←/→ pages, Ctrl/Cmd+F find, E to explain a selection, Esc to close). PDFs also have an
+  **Original** view (the browser's own PDF viewer). Chat citations open the reader on the cited page.
+- **Explain with AI**: select a word, sentence, passage, formula or code in the reader. The
+  explanation uses the text around the selection plus related passages from the same
+  document, adapts to the kind of selection, and supports follow-up questions. Only text is
+  sent to the model; images and diagrams inside documents are not explained.
+- **Chat**: grounded answers with page citations, follow-ups, copy, regenerate, and
+  helpful / not helpful / report-incorrect feedback (reviewable by admins at
+  `GET /admin/system/feedback`).
+- **Voice**: answers read aloud; optional voice cloning from a sample you **record in the
+  browser** (pause/resume, live waveform, preview before upload) or upload. Uploading a
+  sample requires confirming it is your own voice or that you have permission (enforced by
+  the API, not only the UI).
+
+## Running the tests
+
+```bash
+cd backend
+venv\Scripts\python -m unittest discover -s tests -v      # Windows
+venv/bin/python -m unittest discover -s tests -v          # macOS/Linux
+```
+
+The backend tests need no database, network or API keys (a few HTTP checks are skipped
+unless the API is running on :8000). For the frontend:
+
+```bash
+cd frontend
+npx tsc --noEmit
+npm run lint
+npm run build
+```
 
 ## Deploying to production
 

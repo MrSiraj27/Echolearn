@@ -3,7 +3,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, Loader2 } from "lucide-react";
-import Sidebar from "@/components/Sidebar";
 import { api, ApiError } from "@/lib/api";
 import { useChatStore } from "@/lib/chat-store";
 import { PreviewStudyPlanResponse, SessionPreview, StudySessionType } from "@/lib/types";
@@ -141,8 +140,7 @@ export default function NewStudyPlanPage() {
 
   return (
     <>
-      <Sidebar />
-      <main className="flex-1 min-w-0 overflow-y-auto bg-white dark:bg-neutral-950">
+      <main className="flex-1 min-w-0 overflow-y-auto">
         <div className="max-w-2xl mx-auto px-6 py-10">
           <button
             onClick={() => (step === "preview" ? setStep("form") : router.back())}

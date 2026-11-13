@@ -1,3 +1,4 @@
+import logging
 import mimetypes
 import os
 from pathlib import Path
@@ -15,8 +16,15 @@ from app.documents.background import run_parsing_task, run_url_ingest_task
 from app.admin.config_service import is_feature_enabled
 from app.documents.parsers import AUDIO_VIDEO_EXTENSIONS, SUPPORTED_EXTENSIONS, VIDEO_EXTENSIONS
 from app.documents.page_content import find_highlight_offsets, get_page, load_pages
+from app.core.usage import enforce_quota, record_usage
 from app.documents.schemas import (
     DocumentFromUrlRequest,
+    DocumentPage,
+    DocumentPagesResponse,
+    ExplainSelectionRequest,
+    ExplainSelectionResponse,
+    ExplainSource,
+    RenameDocumentRequest,
     DocumentListItem,
     DocumentSearchResult,
     DocumentStatusResponse,
@@ -34,8 +42,10 @@ from app.folders.schemas import MoveDocumentRequest
 from app.models import ContentReport, Document, DocumentFolder, DocumentStatus, User
 from app.rag.vectorstore import delete_document as delete_vector_chunks
 from app.rag.vectorstore import search as vector_search
+from app.rag import selection_explainer
 
 router = APIRouter(prefix="/documents", tags=["documents"])
+logger = logging.getLogger(__name__)
 
 MAX_UPLOAD_BYTES = settings.MAX_UPLOAD_SIZE_MB * 1024 * 1024
 
@@ -111,7 +121,11 @@ def get_document_status(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Document not found.")
 
     return DocumentStatusResponse(
-        id=document.id, status=document.status, page_count=document.page_count, filename=document.filename
+        id=document.id,
+        status=document.status,
+        page_count=document.page_count,
+        filename=document.filename,
+        error_message=document.error_message,
     )
 
 
@@ -169,6 +183,168 @@ def get_document_page(
         total_pages=len(pages),
         highlight_start=highlight[0] if highlight else None,
         highlight_end=highlight[1] if highlight else None,
+    )
+
+
+def _get_owned_document(db: Session, document_id: uuid.UUID, user_id: uuid.UUID) -> Document:
+    document = db.query(Document).filter(Document.id == document_id, Document.user_id == user_id).first()
+    if not document:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Document not found.")
+    return document
+
+
+READABLE_STATUSES = (DocumentStatus.embedded, DocumentStatus.ready)
+
+
+@router.get("/{document_id}/pages", response_model=DocumentPagesResponse)
+def get_document_pages(
+    document_id: uuid.UUID,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Every page's extracted text, for the in-app reader (page navigation, in-document
+    search, text selection). Available once the document has been indexed."""
+    document = _get_owned_document(db, document_id, current_user.id)
+    if document.status not in READABLE_STATUSES:
+        detail = (
+            "This document couldn't be processed, so there's nothing to read."
+            if document.status == DocumentStatus.failed
+            else "This document isn't ready to read yet."
+        )
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=detail)
+    pages = load_pages(document)
+    if not pages:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="This document's text isn't available.")
+    return DocumentPagesResponse(
+        document_id=document.id,
+        filename=document.filename,
+        file_type=document.file_type,
+        pages=[
+            DocumentPage(page_number=p.get("page_number") or i + 1, text=p.get("text") or "")
+            for i, p in enumerate(pages)
+        ],
+    )
+
+
+@router.post("/{document_id}/explain", response_model=ExplainSelectionResponse)
+def explain_document_selection(
+    document_id: uuid.UUID,
+    payload: ExplainSelectionRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Explain text the user selected in the reader, using the text around it and related
+    passages from the same document. With `question`, answers a follow-up about it.
+    Counts as one AI message against the user's message quota, charged only on success."""
+    document = _get_owned_document(db, document_id, current_user.id)
+    if document.status not in READABLE_STATUSES:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="This document isn't ready yet.")
+    selection = payload.text.strip()
+    if not selection:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Select some text first.")
+    question = (payload.question or "").strip() or None
+
+    enforce_quota(db, current_user, "message")
+
+    page = get_page(document, payload.page_number) if payload.page_number else None
+    page_context = selection_explainer.surrounding_context(page.get("text") or "", selection) if page else ""
+
+    related: list[dict] = []
+    try:
+        from app.rag.retrieval import hybrid_search  # loads the embedding model on first use
+
+        queries = [question, selection[:500]] if question else [selection[:500]]
+        chunks, _info = hybrid_search(queries, current_user.id, [document.id], top_k=6, per_doc_k=6)
+        squashed_context = " ".join(page_context.split())
+        for c in chunks:
+            text = (c.get("text") or "").strip()
+            if text and " ".join(text.split())[:200] not in squashed_context:
+                meta = c.get("metadata") or {}
+                related.append({"text": text, "page_number": meta.get("page_number") or c.get("page_number")})
+    except Exception:
+        # The text around the selection is usually enough; don't fail over retrieval.
+        logger.warning("Related-passage retrieval failed for reader explain on %s", document.id, exc_info=True)
+
+    kind = selection_explainer.classify_selection(selection)
+    messages = selection_explainer.build_messages(
+        selection=selection,
+        kind=kind,
+        page_number=payload.page_number,
+        page_context=page_context,
+        related=related,
+        language=payload.language,
+        question=question,
+        previous_explanation=payload.previous_explanation,
+    )
+    try:
+        result = selection_explainer.explain(messages, follow_up=bool(question), user_id=current_user.id)
+    except selection_explainer.ExplainError as exc:
+        raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail=str(exc))
+
+    record_usage(db, current_user.id, "message")
+    sources = [ExplainSource(page_number=payload.page_number, text=page_context[:300])] if page_context else []
+    sources += [
+        ExplainSource(page_number=r["page_number"], text=r["text"][:300])
+        for r in related[: selection_explainer.MAX_RELATED_PASSAGES]
+    ]
+    return ExplainSelectionResponse(kind=kind, selected_text=selection, sources=sources, **result)
+
+
+@router.patch("/{document_id}", response_model=DocumentListItem)
+def rename_document(
+    document_id: uuid.UUID,
+    payload: RenameDocumentRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+    _: None = Depends(block_if_impersonating),
+):
+    document = _get_owned_document(db, document_id, current_user.id)
+    name = " ".join(payload.filename.split())
+    if not name:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Enter a name.")
+    if any(c in name for c in ("/", "\\", "\x00")):
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Names can't contain slashes.")
+    # Keep the file extension so the type icon and media handling stay correct.
+    ext = f".{document.file_type}" if document.file_type else ""
+    if ext and not name.lower().endswith(ext.lower()):
+        name = f"{name}{ext}"
+    document.filename = name[:200]
+    db.commit()
+    db.refresh(document)
+    return document
+
+
+@router.post("/{document_id}/retry", response_model=DocumentStatusResponse)
+def retry_document(
+    document_id: uuid.UUID,
+    background_tasks: BackgroundTasks,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+    _: None = Depends(block_if_impersonating),
+):
+    """Re-run processing for a document that failed. Only `failed` can be retried: a
+    document that is still processing must never get a second parse job."""
+    document = _get_owned_document(db, document_id, current_user.id)
+    if document.status != DocumentStatus.failed:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Only a failed document can be retried.")
+    file_path = document.storage_path
+    if file_path and not os.path.isfile(file_path):
+        download_dir(f"{document.user_id}/{document.id}", Path(file_path).parent)
+    if not file_path or not os.path.isfile(file_path):
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="The original file is no longer available. Please upload it (or add the link) again.",
+        )
+    try:
+        delete_vector_chunks(document.id)
+    except Exception:
+        logger.warning("Couldn't clear old chunks before retrying %s", document.id, exc_info=True)
+    document.status = DocumentStatus.uploaded
+    document.error_message = None
+    db.commit()
+    background_tasks.add_task(run_parsing_task, document.id, file_path, document.file_type)
+    return DocumentStatusResponse(
+        id=document.id, status=document.status, page_count=document.page_count, filename=document.filename
     )
 
 

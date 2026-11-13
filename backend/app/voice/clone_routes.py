@@ -7,7 +7,7 @@ import wave
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
-from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Response, UploadFile, status
+from fastapi import APIRouter, BackgroundTasks, Depends, Form, HTTPException, Response, UploadFile, status
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
@@ -64,9 +64,17 @@ def _wav_info(content: bytes) -> tuple[float, int, int]:
 @router.post("/upload-sample")
 async def upload_sample(
     file: UploadFile,
+    consent: bool = Form(False),
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
+    # The client must send consent=true after the user confirms the voice is their own (or
+    # that they have the speaker's explicit permission). Checked here, not just in the UI.
+    if not consent:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Please confirm this is your own voice, or that you have the speaker's permission to clone it.",
+        )
     content = await file.read()
     if len(content) > MAX_SAMPLE_UPLOAD_MB * 1024 * 1024:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Sample must be under {MAX_SAMPLE_UPLOAD_MB}MB.")
@@ -95,6 +103,8 @@ async def upload_sample(
     # call — not silently re-cloning per message. Best-effort: if Fish Audio has a
     # hiccup here, clone_background.py still creates the model lazily on first use.
     try:
+        if worker_setup_problem():
+            raise CloneUnavailableError("voice cloning paused or not configured; model will be created on first use")
         current_user.fish_voice_model_id = create_fish_voice_model(content)
         db.commit()
     except (CloneUnavailableError, CloneFailedError) as exc:
@@ -263,7 +273,7 @@ def enqueue_clone(db: Session, current_user: User, message_id: str, schedule) ->
         try:
             prepare_worker()  # start the isolated worker if needed (does not wait for model load)
         except CloneUnavailableError as exc:
-            raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=str(exc))
+            raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=exc.user_message)
 
         job = VoiceCloneJob(
             user_id=current_user.id,

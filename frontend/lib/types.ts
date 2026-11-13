@@ -12,6 +12,10 @@ export interface DocumentItem {
   summary?: string | null;
   suggested_questions?: string[] | null;
   folder_id?: string | null;
+  page_count?: number | null;
+  file_size?: number | null;
+  /** Why processing failed, in words meant for the user (only when status is "failed"). */
+  error_message?: string | null;
 }
 
 export interface Folder {
@@ -121,6 +125,8 @@ export interface ChatMessage {
   followUps?: string[];
   content_type?: string;
   translations?: MessageTranslation[];
+  /** This user's own rating of an assistant answer. */
+  feedback?: "helpful" | "not_helpful" | "incorrect" | null;
 }
 
 export type InfographicTemplate = "stats" | "timeline" | "comparison" | "summary";
@@ -655,3 +661,33 @@ export interface TutorSessionListItem {
   total_concepts: number;
   created_at: string;
 }
+
+// ---- Document reader ----
+
+export interface DocumentPage {
+  page_number: number;
+  text: string;
+}
+
+export interface DocumentPagesResponse {
+  document_id: string;
+  filename: string;
+  file_type: string;
+  pages: DocumentPage[];
+}
+
+export type SelectionKind = "term" | "sentence" | "paragraph" | "code" | "math";
+
+export interface ExplainSelectionResponse {
+  kind: SelectionKind;
+  selected_text: string;
+  simple_explanation: string | null;
+  key_points: string[];
+  example: string | null;
+  terms: { term: string; meaning: string }[];
+  follow_up_questions: string[];
+  answer: string | null;
+  sources: { page_number: number | null; text: string }[];
+}
+
+export type FeedbackRating = "helpful" | "not_helpful" | "incorrect";

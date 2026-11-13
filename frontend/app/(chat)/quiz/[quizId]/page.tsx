@@ -4,7 +4,6 @@ import { use, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { Check, X, ExternalLink, Loader2 } from "lucide-react";
-import Sidebar from "@/components/Sidebar";
 import { api, ApiError } from "@/lib/api";
 import { QuizDetail, SubmitQuizResponse } from "@/lib/types";
 import { useChatStore } from "@/lib/chat-store";
@@ -50,9 +49,8 @@ export default function QuizPage({ params }: { params: Promise<{ quizId: string 
 
   return (
     <>
-      <Sidebar />
-      <main className="flex-1 flex flex-col h-screen overflow-y-auto bg-white dark:bg-neutral-950">
-        <div className="max-w-2xl mx-auto w-full px-6 pt-16 pb-8 lg:pt-8">
+      <main className="flex-1 min-w-0 min-h-0 flex flex-col overflow-y-auto">
+        <div className="max-w-2xl mx-auto w-full px-6 pt-8 pb-8">
           {loading && <p className="text-sm text-neutral-400 dark:text-neutral-500">Loading quiz...</p>}
           {error && !quiz && <p className="text-sm text-red-600 dark:text-red-400">{error}</p>}
 

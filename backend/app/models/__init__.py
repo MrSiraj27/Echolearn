@@ -4,6 +4,7 @@ from app.models.chat import Chat, ChatDocument
 from app.models.document import Document, DocumentStatus
 from app.models.folder import DocumentFolder
 from app.models.message import Message, MessageRole
+from app.models.message_feedback import MessageFeedback
 from app.models.message_translation import MessageTranslation
 from app.models.revision_sheet import RevisionSheet, RevisionSheetStatus
 from app.models.tutor import TutorConceptState, TutorSession, TutorTurn
@@ -50,6 +51,7 @@ __all__ = [
     "WorkspaceDocument",
     "Message",
     "MessageRole",
+    "MessageFeedback",
     "MessageTranslation",
     "RevisionSheet",
     "RevisionSheetStatus",

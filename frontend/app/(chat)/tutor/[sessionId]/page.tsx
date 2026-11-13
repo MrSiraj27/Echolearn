@@ -7,7 +7,6 @@ import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { AnimatePresence } from "framer-motion";
 import { ArrowLeft, BookOpen, Check, Download, Lightbulb, Loader2, Send, SkipForward, Sparkles } from "lucide-react";
-import Sidebar from "@/components/Sidebar";
 import SourceViewer from "@/components/SourceViewer";
 import { TranslationBody } from "@/components/LanguageExplain";
 import { api, ApiError, getAccessToken } from "@/lib/api";
@@ -237,8 +236,7 @@ export default function TutorSessionPage() {
   if (notFound) {
     return (
       <>
-        <Sidebar />
-        <main className="flex-1 px-6 py-10 bg-white dark:bg-neutral-950">
+        <main className="flex-1 px-6 py-10">
           <p className="text-sm text-neutral-500">This session doesn&apos;t exist (or was deleted).</p>
         </main>
       </>
@@ -247,8 +245,7 @@ export default function TutorSessionPage() {
   if (!session) {
     return (
       <>
-        <Sidebar />
-        <main className="flex-1 px-6 py-10 bg-white dark:bg-neutral-950">
+        <main className="flex-1 px-6 py-10">
           {error ? <p className="text-sm text-red-600">{error}</p> : <Loader2 className="h-4 w-4 animate-spin text-neutral-400" />}
         </main>
       </>
@@ -262,9 +259,8 @@ export default function TutorSessionPage() {
 
   return (
     <>
-      <Sidebar />
-      <main className="flex-1 min-w-0 flex flex-col h-screen bg-white dark:bg-neutral-950">
-        <div className="border-b border-neutral-200 dark:border-neutral-800 px-4 sm:px-6 pt-14 lg:pt-4 pb-3">
+      <main className="flex-1 min-w-0 min-h-0 flex flex-col">
+        <div className="border-b border-neutral-200 dark:border-neutral-800 px-4 sm:px-6 pt-4 pb-3">
           <div className="max-w-2xl mx-auto">
             <div className="flex items-center justify-between gap-3">
               <button
