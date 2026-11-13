@@ -12,11 +12,11 @@ from app.rag.llm import chat_completion, get_groq_client
 from app.rag.prompts import (
     FOLLOW_UP_PROMPT,
     GROUNDING_SYSTEM_PROMPT,
-    QUERY_REWRITE_PROMPT,
+    QUERY_ANALYSIS_PROMPT,
     RELEVANCE_GRADE_PROMPT,
 )
+from app.rag.retrieval import clean_text, hybrid_search
 from app.rag.smalltalk import detect_smalltalk_reply
-from app.rag.vectorstore import search, search_multi_document
 
 logger = logging.getLogger(__name__)
 
@@ -32,6 +32,8 @@ class RagState(TypedDict, total=False):
     user_id: str
     document_ids: list[str]
     rewritten_query: str
+    search_queries: list[str]
+    retrieval_info: dict
     retrieved_chunks: list[dict]
     has_relevant_context: bool
     answer: str
@@ -45,25 +47,44 @@ def _format_history(chat_history: list[dict]) -> str:
     return "\n".join(lines)
 
 
-def rewrite_query_node(state: RagState) -> RagState:
-    if not state.get("chat_history"):
-        return {"rewritten_query": state["question"]}
+def _parse_json_object(raw: str) -> dict:
+    """Models sometimes wrap JSON in a code fence or add a sentence around it."""
+    cleaned = raw.strip().removeprefix("```json").removeprefix("```").removesuffix("```").strip()
+    start, end = cleaned.find("{"), cleaned.rfind("}")
+    if start == -1 or end <= start:
+        return {}
+    try:
+        data = json.loads(cleaned[start : end + 1])
+    except ValueError:
+        return {}
+    return data if isinstance(data, dict) else {}
 
-    prompt = QUERY_REWRITE_PROMPT.format(
-        chat_history=_format_history(state["chat_history"]), question=state["question"]
+
+def rewrite_query_node(state: RagState) -> RagState:
+    """Understand the question before searching: make it standalone (resolve "it"/"that"
+    from the chat history) and propose alternative phrasings in the document's own wording,
+    so a transliterated or loosely worded question still finds its passage."""
+    question = state["question"]
+    prompt = QUERY_ANALYSIS_PROMPT.format(
+        chat_history=_format_history(state.get("chat_history") or []), question=question
     )
     try:
-        rewritten = chat_completion(
+        raw = chat_completion(
             [{"role": "user", "content": prompt}],
             model=REWRITE_MODEL,
             temperature=0.0,
             purpose="query_rewrite",
             user_id=uuid.UUID(state["user_id"]),
-        ).strip()
-        return {"rewritten_query": rewritten or state["question"]}
+            groq_extra={"reasoning_effort": "low"},
+        )
+        data = _parse_json_object(raw)
+        standalone = str(data.get("standalone_question") or "").strip() or question
+        alternatives = data.get("search_queries") or []
+        extras = [str(q).strip() for q in alternatives if isinstance(q, str) and str(q).strip()][:3]
+        return {"rewritten_query": standalone, "search_queries": extras}
     except Exception:
-        logger.exception("Query rewrite failed, falling back to original question")
-        return {"rewritten_query": state["question"]}
+        logger.warning("Query analysis failed, searching with the original question", exc_info=True)
+        return {"rewritten_query": question, "search_queries": []}
 
 
 def retrieve_node(state: RagState) -> RagState:
@@ -73,14 +94,17 @@ def retrieve_node(state: RagState) -> RagState:
     top_k = RETRIEVAL_TOP_K * 2 if _is_meta_query(state["question"]) else RETRIEVAL_TOP_K
     user_id = uuid.UUID(state["user_id"])
 
-    if len(document_ids) > 1:
-        # Multiple documents in play (a folder or workspace chat) — use two-stage
-        # per-document retrieval so a large/dominant document can't crowd smaller ones
-        # out of the final context.
-        chunks = search_multi_document(state["rewritten_query"], user_id, document_ids, top_k=top_k, per_doc_k=3)
-    else:
-        chunks = search(state["rewritten_query"], user_id, document_ids, top_k=top_k)
-    return {"retrieved_chunks": chunks}
+    # The user's own words come first, then the standalone rewrite, then alternatives.
+    queries = [state["question"]]
+    for q in [state.get("rewritten_query"), *(state.get("search_queries") or [])]:
+        if q and q not in queries:
+            queries.append(q)
+
+    # Hybrid search = semantic + keyword + reference-number lookup. In a multi-document chat
+    # the semantic part is retrieved per document so a big book can't crowd out small ones.
+    chunks, info = hybrid_search(queries, user_id, document_ids, top_k=top_k, per_doc_k=3)
+    logger.info("Retrieved %d chunks (%s)", len(chunks), info)
+    return {"retrieved_chunks": chunks, "retrieval_info": info}
 
 
 _META_QUERY_PATTERN = re.compile(
@@ -105,6 +129,12 @@ def grade_relevance_node(state: RagState) -> RagState:
         return {"has_relevant_context": False}
 
     if _is_meta_query(state["question"]):
+        return {"has_relevant_context": True}
+
+    # The user asked for a specific numbered item or page and we found exactly that —
+    # embedding distance says nothing about it, so don't let the grader veto it.
+    info = state.get("retrieval_info") or {}
+    if info.get("reference_hits") or info.get("page_hits"):
         return {"has_relevant_context": True}
 
     # Fast path: if the closest chunk is well within the similarity threshold, skip the LLM call.
@@ -147,9 +177,45 @@ def _source_label(metadata: dict) -> str:
     return f"[Source: {filename}, page {metadata.get('page_number')}]"
 
 
+_MATCH_NOTES = {
+    "reference": " - EXACT MATCH for the number the user asked about",
+    "continuation": " - continues the exact match above (same passage, next lines/page)",
+    "alt_numbering": " - the same number appears here under a different numbering system",
+    "page": " - the page the user asked for",
+}
+
+# Keeps a request inside the model's per-minute token budget (the Groq on-demand tier is
+# 8k tokens/minute for the answer model) while pinned exact matches, which come first, always
+# survive.
+MAX_CONTEXT_CHARS = 9000
+NOT_FOUND_PREFIX = "i couldn't find this in the document"
+
+
+def _select_context_chunks(chunks: list[dict]) -> list[tuple[dict, str]]:
+    """The chunks that fit the context budget, each with its formatted block, in order."""
+    selected: list[tuple[dict, str]] = []
+    used = 0
+    for c in chunks:
+        note = _MATCH_NOTES.get(c.get("match", ""), "")
+        block = f"{_source_label(c['metadata'])}{note}\n{clean_text(c['text'])}"
+        if selected and used + len(block) > MAX_CONTEXT_CHARS:
+            break
+        selected.append((c, block))
+        used += len(block)
+    return selected
+
+
+def _format_context(chunks: list[dict]) -> str:
+    return "\n\n".join(block for _, block in _select_context_chunks(chunks))
+
+
+def _is_not_found_answer(answer: str) -> bool:
+    return answer.strip().lstrip("*_\"' ").lower().startswith(NOT_FOUND_PREFIX)
+
+
 def build_answer_messages(state: RagState) -> list[dict]:
     chunks = state.get("retrieved_chunks") or []
-    context = "\n\n".join(f"{_source_label(c['metadata'])}\n{c['text']}" for c in chunks)
+    context = _format_context(chunks)
 
     system_prompt = GROUNDING_SYSTEM_PROMPT.format(context=context)
     messages = [{"role": "system", "content": system_prompt}]
@@ -162,13 +228,14 @@ def build_answer_messages(state: RagState) -> list[dict]:
 
 
 def build_citations(state: RagState) -> list[dict]:
-    chunks = state.get("retrieved_chunks") or []
+    # only sources the model was actually shown
+    chunks = [c for c, _ in _select_context_chunks(state.get("retrieved_chunks") or [])]
     citations = [
         {
             "filename": c["metadata"].get("filename"),
             "page_number": c["metadata"].get("page_number"),
             "document_id": c["metadata"].get("document_id"),
-            "chunk_text": c["text"],
+            "chunk_text": clean_text(c["text"]),
             "start_time_seconds": c["metadata"].get("start_time_seconds"),
         }
         for c in chunks
@@ -216,7 +283,10 @@ def generate_answer_node(state: RagState) -> RagState:
         logger.exception("Answer generation failed")
         answer = "Sorry, I ran into an error generating a response. Please try again."
 
-    return {"answer": answer, "citations": build_citations(state)}
+    # An answer that says "not found" must not carry sources: they are just the nearest
+    # chunks, and showing them under that sentence reads as if they support it.
+    citations = [] if _is_not_found_answer(answer) else build_citations(state)
+    return {"answer": answer, "citations": citations}
 
 
 def not_found_node(state: RagState) -> RagState:
@@ -280,7 +350,7 @@ async def run_rag_pipeline(
         }
     )
     answer = result.get("answer", "")
-    has_context = bool(result.get("has_relevant_context"))
+    has_context = bool(result.get("has_relevant_context")) and not _is_not_found_answer(answer)
     follow_ups = generate_follow_ups(question, answer, result.get("retrieved_chunks") or []) if has_context else []
     return {
         "answer": answer,
@@ -353,6 +423,10 @@ async def stream_rag_pipeline(
             logger.exception("Fallback answer generation also failed")
             full_answer = "Sorry, I ran into an error generating a response. Please try again."
         yield ("token", full_answer)
+
+    if _is_not_found_answer(full_answer):
+        yield ("done", {"citations": [], "follow_ups": [], "was_answered": False})
+        return
 
     follow_ups = generate_follow_ups(question, full_answer, state.get("retrieved_chunks") or [])
     yield ("done", {"citations": citations, "follow_ups": follow_ups, "was_answered": True})

@@ -4,6 +4,16 @@ import uuid
 
 AUDIO_CHUNK_CHAR_TARGET = 900
 
+_CID_PATTERN = re.compile(r"\(cid:\d+\)")
+_URL_LINE_PATTERN = re.compile(r"^\s*https?://\S+\s*$", re.MULTILINE)
+
+
+def clean_text(text: str) -> str:
+    """Drop PDF-extraction noise: '(cid:9)' glyph placeholders and bare URL footer lines."""
+    text = _CID_PATTERN.sub(" ", text)
+    text = _URL_LINE_PATTERN.sub("", text)
+    return re.sub(r"[ \t]{2,}", " ", text).strip()
+
 
 class _RecursiveCharacterTextSplitter:
     """A vendored copy of langchain_text_splitters.RecursiveCharacterTextSplitter's
@@ -121,7 +131,7 @@ def chunk_text(
     chunks: list[dict] = []
 
     for page in pages:
-        page_text = page.get("text", "")
+        page_text = clean_text(page.get("text", "") or "")
         if page_text.strip():
             for piece in _splitter.split_text(page_text):
                 chunks.append(
