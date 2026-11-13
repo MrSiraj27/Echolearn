@@ -1,0 +1,369 @@
+<title>EchoLearn Feature Guide</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Space+Grotesk:wght@500;600&family=JetBrains+Mono:wght@400&display=swap">
+<style>
+/* Layout: sticky contents rail on the left, one reading column on the right; stacks on phones. */
+:root {
+  --bg: #fbfbfa; --surface: #ffffff; --ink: #1d2321; --muted: #5d6763; --line: #e3e7e5;
+  --accent: #0f766e; --accent-soft: #e3f3f1; --warn-soft: #fdf3e1; --warn-ink: #8a5a0b;
+  --danger-soft: #fdecec; --danger-ink: #a02c2c; --ok-soft: #e8f5e9; --ok-ink: #2e6b32;
+  --display: "Space Grotesk", "Segoe UI", system-ui, sans-serif;
+  --body: "Inter", "Segoe UI", system-ui, sans-serif;
+  --mono: "JetBrains Mono", ui-monospace, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #121615; --surface: #1a201e; --ink: #e6ebe9; --muted: #9aa6a1; --line: #2c3532;
+  --accent: #4fd1c1; --accent-soft: #163632; --warn-soft: #3a2c12; --warn-ink: #f2c46d;
+  --danger-soft: #3b1c1c; --danger-ink: #f19a9a; --ok-soft: #1b3320; --ok-ink: #94d39a; color-scheme: dark } }
+:root[data-theme="dark"] {
+  --bg: #121615; --surface: #1a201e; --ink: #e6ebe9; --muted: #9aa6a1; --line: #2c3532;
+  --accent: #4fd1c1; --accent-soft: #163632; --warn-soft: #3a2c12; --warn-ink: #f2c46d;
+  --danger-soft: #3b1c1c; --danger-ink: #f19a9a; --ok-soft: #1b3320; --ok-ink: #94d39a; color-scheme: dark }
+
+* { box-sizing: border-box }
+body { background: var(--bg); color: var(--ink); font: 15px/1.65 var(--body); }
+.wrap { max-width: 1180px; margin: 0 auto; display: grid; grid-template-columns: 230px minmax(0, 1fr); gap: 48px;
+  padding-block: 40px 80px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+nav.toc { position: sticky; top: calc(24px + env(safe-area-inset-top, 0px)); align-self: start; font-size: 13px; max-height: calc(100vh - 48px); overflow-y: auto; }
+nav.toc p { font: 600 11px/1 var(--body); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); margin: 0 0 10px; }
+nav.toc ol { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; counter-reset: s; }
+nav.toc a { display: block; padding: 4px 8px; border-radius: 6px; color: var(--muted); text-decoration: none; }
+nav.toc a:hover, nav.toc a:focus-visible { background: var(--accent-soft); color: var(--ink); outline: none; }
+main { min-width: 0; max-width: 760px; }
+header.lead h1 { font: 600 clamp(28px, 4vw, 38px)/1.15 var(--display); margin: 0 0 12px; text-wrap: balance; }
+header.lead p { color: var(--muted); margin: 0 0 8px; max-width: 64ch; }
+.meta { display: flex; flex-wrap: wrap; gap: 8px; margin: 18px 0 0; }
+.pill { display: inline-flex; align-items: center; font-size: 12px; padding: 3px 10px; border-radius: 999px; background: var(--accent-soft); color: var(--ink); }
+section { padding-top: 44px; scroll-margin-top: 16px; }
+h2 { font: 600 22px/1.25 var(--display); margin: 0 0 6px; text-wrap: balance; }
+h2 .n { font: 500 13px var(--mono); color: var(--accent); margin-right: 10px; }
+h3 { font: 600 14px/1.3 var(--body); margin: 22px 0 8px; }
+.purpose { color: var(--muted); margin: 0 0 14px; max-width: 64ch; }
+ul { margin: 0; padding-left: 20px; display: grid; gap: 4px; }
+li::marker { color: var(--accent); }
+.grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 14px; margin-top: 8px; }
+.card { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 14px 16px; min-width: 0; }
+.card h3 { margin-top: 0; }
+.states { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 4px; }
+.st { font-size: 12px; padding: 2px 9px; border-radius: 6px; background: var(--surface); border: 1px solid var(--line); color: var(--muted); }
+.st.ok { background: var(--ok-soft); color: var(--ok-ink); border-color: transparent }
+.st.run { background: var(--warn-soft); color: var(--warn-ink); border-color: transparent }
+.st.bad { background: var(--danger-soft); color: var(--danger-ink); border-color: transparent }
+.note { background: var(--warn-soft); color: var(--warn-ink); border-radius: 8px; padding: 10px 14px; font-size: 14px; margin-top: 14px; }
+.route { font: 12px var(--mono); color: var(--muted); }
+code { font: 12.5px var(--mono); background: var(--accent-soft); padding: 1px 5px; border-radius: 4px; }
+.tbl { overflow-x: auto; margin-top: 10px; border: 1px solid var(--line); border-radius: 10px; background: var(--surface); }
+table { border-collapse: collapse; width: 100%; font-size: 13.5px; min-width: 520px; }
+th, td { text-align: left; padding: 9px 12px; border-bottom: 1px solid var(--line); vertical-align: top; }
+th { font-weight: 600; font-size: 12px; color: var(--muted); }
+tr:last-child td { border-bottom: 0; }
+td.k { font-family: var(--mono); font-size: 12px; white-space: nowrap; }
+a { color: var(--accent); }
+@media (max-width: 860px) {
+  .wrap { grid-template-columns: minmax(0, 1fr); gap: 20px; padding-block: 24px 60px; }
+  nav.toc { position: static; max-height: none; border: 1px solid var(--line); border-radius: 10px; padding: 12px; background: var(--surface); }
+  nav.toc ol { grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); }
+}
+@media (prefers-reduced-motion: no-preference) { html { scroll-behavior: smooth; } }
+</style>
+
+<div class="wrap">
+<nav class="toc" aria-label="Contents">
+  <p>Contents</p>
+  <ol>
+    <li><a href="#overview">Product overview</a></li>
+    <li><a href="#shell">App shell and navigation</a></li>
+    <li><a href="#account">Account and sign-in</a></li>
+    <li><a href="#documents">Documents library</a></li>
+    <li><a href="#chat">Chat with documents</a></li>
+    <li><a href="#reader">Document reader</a></li>
+    <li><a href="#tutor">Tutor mode</a></li>
+    <li><a href="#quizzes">Quizzes</a></li>
+    <li><a href="#review">Daily review</a></li>
+    <li><a href="#plans">Study plans</a></li>
+    <li><a href="#papers">Practice papers</a></li>
+    <li><a href="#sheets">Revision sheets</a></li>
+    <li><a href="#analytics">Analytics</a></li>
+    <li><a href="#voice">Voice and listening</a></li>
+    <li><a href="#settings">Settings</a></li>
+    <li><a href="#billing">Plans and limits</a></li>
+    <li><a href="#admin">Admin console</a></li>
+    <li><a href="#cross">Design for every screen</a></li>
+    <li><a href="#ia">Suggested navigation</a></li>
+  </ol>
+</nav>
+
+<main>
+<header class="lead">
+  <h1>EchoLearn feature guide</h1>
+  <p>Everything the app can do today, written for designing a new interface. Each area lists what it's for, its screens, what a user can do there, and the states the design has to cover.</p>
+  <p>Built from the current code (web app, API and admin console). Features that exist in the API but have no screen yet are marked.</p>
+  <div class="meta"><span class="pill">17 feature areas</span><span class="pill">Web: desktop and phone</span><span class="pill">English, Urdu, Roman Urdu</span><span class="pill">Light and dark</span></div>
+</header>
+
+<section id="overview">
+  <h2><span class="n">01</span>Product overview</h2>
+  <p class="purpose">EchoLearn is a study assistant for students. They upload their own material (notes, books, slides, recordings), then read, ask questions, and study from it. Every AI answer comes only from the student's own documents and shows which page it came from.</p>
+  <div class="grid">
+    <div class="card"><h3>Who uses it</h3><ul><li>Students preparing for exams (main user)</li><li>Learners who prefer Urdu or Roman Urdu explanations</li><li>Admins and moderators (separate console)</li></ul></div>
+    <div class="card"><h3>Core loop</h3><ul><li>Upload material</li><li>Read it and ask questions</li><li>Practise: tutor, quizzes, flashcards, papers</li><li>Track progress and weak spots</li></ul></div>
+    <div class="card"><h3>Platforms</h3><ul><li>Responsive web app (desktop, tablet, phone)</li><li>A Flutter mobile app exists separately (in progress)</li></ul></div>
+  </div>
+</section>
+
+<section id="shell">
+  <h2><span class="n">02</span>App shell and navigation</h2>
+  <p class="purpose">What is visible on every signed-in screen today. The current sidebar holds almost everything, which is the main usability problem to solve.</p>
+  <h3>Currently in the sidebar</h3>
+  <ul>
+    <li>New chat button</li>
+    <li>Daily review card (cards due today and estimated minutes) and today's study plan session</li>
+    <li>Recent chats (open, delete)</li>
+    <li>Documents: upload by drag-and-drop or file picker, add from a video link, folders, the document list with status</li>
+    <li>Workspaces (named groups of documents to chat across)</li>
+    <li>Practice papers and revision sheets in progress</li>
+    <li>Plan and usage panel (current plan, quotas used)</li>
+    <li>Links: Tutor mode, Analytics, Settings, Log out</li>
+  </ul>
+  <h3>Design needs</h3>
+  <ul>
+    <li>Collapsible drawer on phones (today opened by a menu button)</li>
+    <li>Global "New chat" and "Upload" actions reachable from anywhere</li>
+    <li>Badges for things that need attention: cards due, a document that failed, a paper or sheet finished generating</li>
+    <li>Admin "viewing as a user" banner when an admin impersonates someone (read-only mode)</li>
+  </ul>
+</section>
+
+<section id="account">
+  <h2><span class="n">03</span>Account and sign-in</h2>
+  <p class="purpose">Email and password accounts with email verification.</p>
+  <div class="grid">
+    <div class="card"><h3>Screens</h3><ul><li>Sign up</li><li>Log in</li><li>Verify email (link landing page)</li><li>Forgot password</li><li>Reset password (link landing page)</li></ul></div>
+    <div class="card"><h3>Actions</h3><ul><li>Create account, then verify by email</li><li>Resend verification email</li><li>Request and complete a password reset</li><li>Stay signed in (silent token refresh)</li></ul></div>
+  </div>
+  <h3>States</h3>
+  <div class="states"><span class="st">Email not verified yet</span><span class="st">Link expired or already used</span><span class="st">Wrong password</span><span class="st bad">Account blocked</span><span class="st">Too many attempts</span><span class="st ok">Verified</span></div>
+</section>
+
+<section id="documents">
+  <h2><span class="n">04</span>Documents library</h2>
+  <p class="purpose">Where students add and manage their study material. Everything else in the app works from these documents.</p>
+  <div class="grid">
+    <div class="card"><h3>Supported inputs</h3><ul><li>PDF (including scanned, read with OCR), Word, PowerPoint, TXT, CSV</li><li>Images (PNG, JPG) read with OCR</li><li>Audio (MP3, WAV, M4A) and video (MP4, MOV), transcribed with timestamps</li><li>A video link (YouTube and similar sites)</li></ul></div>
+    <div class="card"><h3>Actions</h3><ul><li>Upload (drag-and-drop or picker), optionally into a folder</li><li>Open in the reader, start a chat, start the tutor, make a revision sheet</li><li>Rename, move to folder, delete</li><li>Search inside one document</li><li>See its AI summary and suggested questions</li><li>Retry a failed document</li><li>Report a document (copyright, illegal, spam, other)</li></ul></div>
+    <div class="card"><h3>Organising</h3><ul><li>Folders: create, delete, move documents; chat with a whole folder</li><li>Workspaces: named sets of documents (a document can be in several), chat across a workspace</li></ul></div>
+  </div>
+  <h3>Processing states (each document card needs these)</h3>
+  <div class="states"><span class="st">Uploading</span><span class="st run">Processing / transcribing</span><span class="st run">Finishing up</span><span class="st ok">Ready</span><span class="st bad">Failed, with a reason</span></div>
+  <p class="purpose" style="margin-top:10px">Failure reasons the UI shows: password-protected PDF, damaged file, no readable text, indexing failed, video link couldn't be downloaded, server busy, interrupted by a restart. Audio and video take minutes to transcribe, so they need a "this can take a few minutes" message.</p>
+  <h3>Data per document</h3>
+  <ul><li>Name, file type icon, status, upload date, page count, file size, folder</li><li>Summary and 3 to 5 suggested questions (when ready)</li></ul>
+  <h3>Limits that need messages</h3>
+  <div class="states"><span class="st">File too large for plan</span><span class="st">Document limit reached</span><span class="st">Storage full</span><span class="st">Video uploads turned off</span><span class="st">Unsupported file type</span></div>
+  <div class="note">There is no dedicated documents page yet. Documents live only in the sidebar, where names get cut off. A full documents page is the biggest structural improvement available.</div>
+</section>
+
+<section id="chat">
+  <h2><span class="n">05</span>Chat with documents</h2>
+  <p class="purpose">Ask questions and get answers grounded in the chosen documents, with page citations. The busiest screen in the app.</p>
+  <div class="grid">
+    <div class="card"><h3>Starting a chat</h3><ul><li>Pick the scope: one document, several documents, a folder, or a workspace</li><li>Start from suggested questions</li><li>Chats keep their scope; the header shows the title and how many documents</li></ul></div>
+    <div class="card"><h3>Asking</h3><ul><li>Type, or speak with the microphone (speech-to-text, English or Urdu)</li><li>Answer streams in word by word</li><li>Follow-up question chips under each answer</li><li>Says clearly when the answer isn't in the documents</li></ul></div>
+    <div class="card"><h3>On each answer</h3><ul><li>Sources: list of cited pages; open a source preview with the passage highlighted, or open it in the reader</li><li>Listen (read aloud), choose standard voice or My Voice</li><li>Copy, regenerate</li><li>Explain in Urdu, or in Roman Urdu (cached per answer)</li><li>"Teach me this" (starts the tutor on that topic)</li><li>Save as flashcard</li><li>Helpful / not helpful / report incorrect (optional note)</li><li>Select any text in an answer to get an explanation</li><li>Delete a message</li></ul></div>
+    <div class="card"><h3>Tools in a chat</h3><ul><li>Generate a diagram (flowchart from the documents, with copyable source)</li><li>Generate an infographic: stats, timeline, comparison or summary templates, downloadable as an image</li><li>Generate a quiz from the chat's documents</li><li>Export the chat as Markdown or PDF</li></ul></div>
+    <div class="card"><h3>Audio and video documents</h3><ul><li>Citations are timestamps instead of page numbers</li><li>Built-in media player; clicking a timestamp seeks to it</li><li>Transcript view</li></ul></div>
+  </div>
+  <h3>States</h3>
+  <div class="states"><span class="st">Empty chat with suggestions</span><span class="st run">Thinking / streaming</span><span class="st">Not found in your documents</span><span class="st bad">Couldn't answer, try again</span><span class="st">Message limit reached (shows when it resets)</span><span class="st">Document still processing</span><span class="st run">Translating to Urdu</span><span class="st">Diagram couldn't be made from this content</span></div>
+  <div class="note">Urdu answers are right-to-left and need an Urdu-capable font. Answers can contain Markdown: headings, lists, tables, code blocks.</div>
+</section>
+
+<section id="reader">
+  <h2><span class="n">06</span>Document reader</h2>
+  <p class="purpose">Read a processed document page by page, select anything difficult, and get a simple explanation based on the surrounding text. New, and a key part of the learning experience.</p>
+  <div class="grid">
+    <div class="card"><h3>Reading</h3><ul><li>Page-by-page text view with page number and progress bar</li><li>Page list and detected section headings for navigation</li><li>Find in document with match count and next/previous</li><li>Zoom</li><li>"Original" view for PDFs (the actual PDF)</li><li>Keyboard: arrows for pages, Ctrl/Cmd+F to find, E to explain, Esc to close</li><li>Start a chat about the document</li></ul></div>
+    <div class="card"><h3>Explain with AI</h3><ul><li>Select text: a floating bar offers Explain with AI and Copy</li><li>The panel shows: your selection, a plain-language explanation, key points, an example, difficult terms, and the pages it used</li><li>Adapts to what was selected: a term, a sentence, a passage, code or maths</li><li>Suggested follow-up questions and a box to ask your own</li><li>The explained passage stays highlighted on the page</li></ul></div>
+  </div>
+  <h3>Layout by screen size</h3>
+  <ul><li>Wide: navigation, text and explanation panel side by side (panel resizable)</li><li>Laptop: the explanation panel slides over the text</li><li>Phone: the explanation is a bottom sheet; navigation is a drawer</li></ul>
+  <h3>States</h3>
+  <div class="states"><span class="st run">Loading document</span><span class="st">Not ready yet</span><span class="st bad">Couldn't be processed</span><span class="st">Page has no text (image)</span><span class="st run">Explaining</span><span class="st bad">Explanation failed, try again</span><span class="st">Message limit reached</span></div>
+  <div class="note">Only text can be explained. Images and diagrams inside documents are not sent to the AI, so the design shouldn't suggest they can be selected.</div>
+</section>
+
+<section id="tutor">
+  <h2><span class="n">07</span>Tutor mode</h2>
+  <p class="purpose">A guided lesson. The tutor asks questions instead of giving answers, gives hints step by step, and checks understanding, all from the student's documents.</p>
+  <div class="grid">
+    <div class="card"><h3>Start screen</h3><ul><li>Topic</li><li>Learn from: documents or a workspace</li><li>Level: beginner, intermediate, exam-ready</li><li>Language: English, Urdu, Roman Urdu</li><li>List of past sessions with mastery count</li></ul></div>
+    <div class="card"><h3>Session</h3><ul><li>Concept-by-concept progress (each concept: in progress, mastered, needed the answer)</li><li>Student answers in their own words</li><li>Buttons: Hint (up to 3 levels), Just tell me, Skip, End session</li><li>"Explain in simple words" when stuck</li><li>Feedback on each answer (correct, partly, not yet) with the source passage</li><li>Turn limit per session</li></ul></div>
+    <div class="card"><h3>Summary</h3><ul><li>What went well, worth another look, next steps</li><li>Concepts that need work become flashcards automatically</li><li>Download the summary</li></ul></div>
+  </div>
+  <h3>States</h3>
+  <div class="states"><span class="st run">Building the lesson</span><span class="st run">Tutor is typing</span><span class="st">Session finished</span><span class="st">Weekly session limit reached</span><span class="st">Level or language not on your plan</span><span class="st bad">Couldn't respond, try again</span></div>
+</section>
+
+<section id="quizzes">
+  <h2><span class="n">08</span>Quizzes</h2>
+  <p class="purpose">Auto-generated quizzes from documents.</p>
+  <div class="grid">
+    <div class="card"><h3>Create</h3><ul><li>From a chat's documents</li><li>Number of questions, difficulty</li><li>Type: multiple choice, short answer, or mixed</li></ul></div>
+    <div class="card"><h3>Take and review</h3><ul><li>Answer all questions, submit</li><li>Score, right and wrong answers, explanation per question</li><li>View the source passage for any question</li><li>Wrong answers become flashcards</li><li>Completing a quiz ticks off its study plan session</li></ul></div>
+  </div>
+  <h3>States</h3>
+  <div class="states"><span class="st run">Generating</span><span class="st">Monthly quiz limit reached</span><span class="st">Quizzes turned off</span><span class="st ok">Results</span></div>
+</section>
+
+<section id="review">
+  <h2><span class="n">09</span>Daily review (flashcards)</h2>
+  <p class="purpose">Spaced-repetition flashcards. Cards come from quizzes, tutor sessions, and "Save as flashcard" in chat.</p>
+  <ul>
+    <li>Today's queue: count and estimated minutes (also shown as a card in the sidebar)</li>
+    <li>Show question, reveal answer, rate: Forgot, Hard, Easy; the card is rescheduled</li>
+    <li>Stats: due today, struggling cards</li>
+    <li>Setting: maximum cards per day (5 to 50)</li>
+  </ul>
+  <h3>States</h3>
+  <div class="states"><span class="st ok">All done for today</span><span class="st">No cards yet</span><span class="st">Card revealed</span></div>
+</section>
+
+<section id="plans">
+  <h2><span class="n">10</span>Study plans</h2>
+  <p class="purpose">A day-by-day schedule up to an exam date.</p>
+  <div class="grid">
+    <div class="card"><h3>Create</h3><ul><li>Pick documents or a workspace</li><li>Exam date and minutes per day</li><li>Preview topics (choose which to include) and the generated schedule</li><li>Warnings, e.g. not enough days</li></ul></div>
+    <div class="card"><h3>Follow</h3><ul><li>Calendar or list of sessions: learn, review, quiz, checkpoint</li><li>Open a session: generated explanation content</li><li>Mark complete or skip</li><li>Status: on track, slightly behind, significantly behind</li><li>Compress: reschedule what's left into the remaining days</li><li>Today's session card on the home screen</li><li>Abandon a plan (kept in history)</li></ul></div>
+  </div>
+  <h3>States</h3>
+  <div class="states"><span class="st ok">Active</span><span class="st">Completed</span><span class="st">Abandoned</span><span class="st run">Generating session content</span><span class="st">Session done / skipped</span></div>
+</section>
+
+<section id="papers">
+  <h2><span class="n">11</span>Practice papers</h2>
+  <p class="purpose">Full mock exam papers built from the student's material, optionally in the style of real past papers.</p>
+  <div class="grid">
+    <div class="card"><h3>Create (multi-step form)</h3><ul><li>Choose material: documents or a workspace</li><li>Optional: upload past papers; the app detects their structure</li><li>Review and edit the structure: sections, question type, number of questions, marks each</li><li>Important topics, title, time allowed (5 to 600 minutes)</li></ul></div>
+    <div class="card"><h3>Use</h3><ul><li>View the paper</li><li>Attempt mode: answer, then submit</li><li>Results: auto-graded where possible; self-grade the rest</li><li>Download the question paper or answer key as PDF</li><li>Topic focus breakdown</li></ul></div>
+  </div>
+  <h3>States</h3>
+  <div class="states"><span class="st run">Analysing past paper</span><span class="st bad">Couldn't detect structure</span><span class="st run">Generating paper</span><span class="st bad">Couldn't be generated</span><span class="st ok">Ready</span><span class="st">Needs self-grading</span></div>
+</section>
+
+<section id="sheets">
+  <h2><span class="n">12</span>Revision sheets</h2>
+  <p class="purpose">A printable one-to-a-few-page summary of the most important points.</p>
+  <ul>
+    <li>Create from documents or a workspace: title, topics, page length, language (English, Urdu, Roman Urdu, bilingual), include my weak spots</li>
+    <li>Sheet page: preview, sources, download PDF, regenerate, delete</li>
+    <li>List of all sheets with status</li>
+  </ul>
+  <h3>States</h3>
+  <div class="states"><span class="st run">Queued</span><span class="st run">Building</span><span class="st ok">Ready</span><span class="st bad">Failed</span><span class="st">Monthly limit / longer sheets on paid plans</span></div>
+</section>
+
+<section id="analytics">
+  <h2><span class="n">13</span>Analytics</h2>
+  <p class="purpose">Personal learning insights.</p>
+  <ul>
+    <li>Overview: activity totals</li>
+    <li>Knowledge gaps: questions the documents couldn't answer, topics answered poorly</li>
+    <li>Document performance: which documents are used and how well they answer</li>
+    <li>Quiz insights: scores and weak areas</li>
+  </ul>
+  <h3>States</h3>
+  <div class="states"><span class="st">No documents yet</span><span class="st">No questions in the last 30 days</span><span class="st run">Loading</span></div>
+</section>
+
+<section id="voice">
+  <h2><span class="n">14</span>Voice and listening</h2>
+  <p class="purpose">Answers can be read aloud, including in a clone of the student's own voice.</p>
+  <div class="grid">
+    <div class="card"><h3>Listening</h3><ul><li>Listen button on answers (play / stop)</li><li>Standard server voices, with a browser voice as fallback</li><li>Urdu read-aloud for Urdu answers</li><li>Microphone input for questions</li></ul></div>
+    <div class="card"><h3>My Voice (cloning)</h3><ul><li>Record in the browser (pause, resume, live waveform, timer) or upload a clip</li><li>3 to 20 seconds; silent or too-short clips are rejected</li><li>Listen back before using it</li><li>Required consent: my own voice, or I have permission</li><li>Replace or delete the sample</li><li>Option: pre-generate My Voice for new answers</li><li>Daily clone limit</li></ul></div>
+  </div>
+  <h3>States</h3>
+  <div class="states"><span class="st run">Loading audio</span><span class="st run">Generating in your voice</span><span class="st">Playing</span><span class="st">My Voice unavailable, standard voice used</span><span class="st">Microphone blocked</span><span class="st">Not on your plan</span></div>
+</section>
+
+<section id="settings">
+  <h2><span class="n">15</span>Settings</h2>
+  <ul>
+    <li>Read-aloud voice (standard and browser voices)</li>
+    <li>Voice cloning (see above)</li>
+    <li>Preferred language: auto-explain every answer in Urdu or Roman Urdu</li>
+    <li>Daily review: cards per day</li>
+    <li>Usage and quotas (also in the sidebar plan panel)</li>
+    <li>Theme: light, dark, system</li>
+  </ul>
+  <div class="note">Not available yet: changing email, name or password from settings, deleting your own account, notification preferences.</div>
+</section>
+
+<section id="billing">
+  <h2><span class="n">16</span>Plans and limits</h2>
+  <p class="purpose">Three plans exist (Starter, Scholar, Institution) with an upgrade page. Every limit below can be different per plan, and admins can override them per user. Each one needs a friendly "limit reached" message and, where relevant, an upgrade prompt.</p>
+  <div class="tbl"><table>
+    <thead><tr><th>Limit</th><th>What it controls</th></tr></thead>
+    <tbody>
+      <tr><td class="k">max_documents</td><td>Number of documents</td></tr>
+      <tr><td class="k">max_file_size_mb</td><td>Size of one upload</td></tr>
+      <tr><td class="k">max_storage_mb</td><td>Total storage</td></tr>
+      <tr><td class="k">max_audio_video_minutes</td><td>Length of audio and video</td></tr>
+      <tr><td class="k">messages_per_window</td><td>Chat and explain messages per time window (default 5 hours)</td></tr>
+      <tr><td class="k">max_workspaces</td><td>Number of workspaces</td></tr>
+      <tr><td class="k">quiz_generations_per_month</td><td>Quizzes and practice papers</td></tr>
+      <tr><td class="k">diagrams_infographics_per_month</td><td>Diagrams and infographics</td></tr>
+      <tr><td class="k">tts_uses_per_day</td><td>Read-aloud uses</td></tr>
+      <tr><td class="k">voice_clone_uses_per_day</td><td>My Voice uses (0 = not on the plan)</td></tr>
+      <tr><td class="k">language_explanations_per_day</td><td>Urdu and Roman Urdu explanations</td></tr>
+      <tr><td class="k">revision_sheets_per_month</td><td>Revision sheets</td></tr>
+      <tr><td class="k">revision_sheet_max_pages, revision_sheet_advanced</td><td>Sheet length; Urdu, bilingual and weak-spot sheets</td></tr>
+      <tr><td class="k">tutor_sessions_per_week, tutor_max_turns_per_session</td><td>Tutor usage</td></tr>
+      <tr><td class="k">tutor_levels_allowed, tutor_languages_allowed</td><td>Which tutor levels and languages are unlocked</td></tr>
+      <tr><td class="k">priority_processing</td><td>Faster document processing</td></tr>
+    </tbody>
+  </table></div>
+  <p class="purpose" style="margin-top:10px">Payments are not built: the upgrade page lists plans, but there is no checkout.</p>
+</section>
+
+<section id="admin">
+  <h2><span class="n">17</span>Admin console</h2>
+  <p class="purpose">A separate area at <code>/admin</code> with its own login and roles (super admin, support, moderator).</p>
+  <div class="grid">
+    <div class="card"><h3>Users</h3><ul><li>Search and filter users</li><li>User detail: documents, chats, quiz attempts, recent activity and errors, quotas</li><li>Change plan, set custom limits, reset usage</li><li>Verify email, block or unblock (with reason), delete account</li><li>Admin notes</li><li>Impersonate (view the app as the user, read-only)</li></ul></div>
+    <div class="card"><h3>Operations</h3><ul><li>Plans: create and edit plans and their limits</li><li>Blocked users list</li><li>System health: AI provider status, call volume, failure rate, stuck and failed jobs, storage per user, voice clone job health, retry a failed document</li><li>Answer feedback review (API only, no screen yet)</li></ul></div>
+    <div class="card"><h3>Safety and config</h3><ul><li>Moderation: user reports and auto-flagged documents; dismiss, remove document, or suspend the owner</li><li>Abuse signals (rate-limit offenders)</li><li>Configuration: feature flags (diagrams, infographics, quizzes, video upload, voice output), model selection, flagged keywords, abuse thresholds</li></ul></div>
+  </div>
+</section>
+
+<section id="cross">
+  <h2><span class="n">18</span>Design for every screen</h2>
+  <div class="grid">
+    <div class="card"><h3>Languages</h3><ul><li>English, Urdu (right-to-left, Urdu script), Roman Urdu</li><li>Mixed-direction text inside one answer</li></ul></div>
+    <div class="card"><h3>Themes and sizes</h3><ul><li>Light and dark</li><li>Phone, tablet, laptop, wide desktop</li><li>Touch: no actions that only appear on hover</li></ul></div>
+    <div class="card"><h3>Long-running work</h3><ul><li>Many things take seconds to minutes: processing, transcription, papers, sheets, voice</li><li>They need progress, "you can leave this page", and a notice when done</li></ul></div>
+    <div class="card"><h3>Every list and action</h3><ul><li>Empty state that invites the first step</li><li>Loading, error with retry, limit reached with when it resets</li><li>Confirmation before deleting</li></ul></div>
+    <div class="card"><h3>Trust</h3><ul><li>Show sources on every AI output</li><li>Say clearly when something isn't in the documents</li><li>Never show raw technical errors</li></ul></div>
+    <div class="card"><h3>Accessibility</h3><ul><li>Visible keyboard focus, labelled icon buttons</li><li>Readable contrast in both themes</li><li>Reduced-motion support</li></ul></div>
+  </div>
+</section>
+
+<section id="ia">
+  <h2><span class="n">19</span>Suggested navigation</h2>
+  <p class="purpose">A starting point for the new information architecture, grouping today's features by what the student is trying to do.</p>
+  <div class="tbl"><table>
+    <thead><tr><th>Section</th><th>Contains</th></tr></thead>
+    <tbody>
+      <tr><td>Home</td><td>Today: cards due, today's study session, recent documents and chats, continue where you left off, upload</td></tr>
+      <tr><td>Documents</td><td>Library with folders and workspaces, upload, status, open in reader</td></tr>
+      <tr><td>Chats</td><td>All chats, new chat with scope picker</td></tr>
+      <tr><td>Study</td><td>Tutor, Daily review, Quizzes, Practice papers, Study plans, Revision sheets</td></tr>
+      <tr><td>Progress</td><td>Analytics</td></tr>
+      <tr><td>Voice</td><td>Read-aloud voice and My Voice (could live inside Settings)</td></tr>
+      <tr><td>Settings</td><td>Language, review, theme, plan and usage, upgrade</td></tr>
+    </tbody>
+  </table></div>
+  <p class="purpose" style="margin-top:10px">On each chat answer, keep only the most-used actions visible (Listen, Copy, rating) and put the rest in a "More" menu: Urdu, Roman Urdu, Teach me this, Save as flashcard, Regenerate, Report.</p>
+</section>
+</main>
+</div>

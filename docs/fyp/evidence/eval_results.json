@@ -1,0 +1,60 @@
+{
+ "corpus_chunks": 6233,
+ "unique_numbered": 6328,
+ "results": {
+  "ref_t1_A": {
+   "lenient_hits": 0,
+   "n": 60,
+   "hits": 0,
+   "recall": 0.0,
+   "mean_rank_when_found": null,
+   "median_latency_ms": 215,
+   "p95_latency_ms": 230
+  },
+  "ref_t1_B": {
+   "lenient_hits": 0,
+   "n": 60,
+   "hits": 60,
+   "recall": 1.0,
+   "mean_rank_when_found": 1,
+   "median_latency_ms": 395,
+   "p95_latency_ms": 410
+  },
+  "ref_t2_A": {
+   "lenient_hits": 0,
+   "n": 60,
+   "hits": 0,
+   "recall": 0.0,
+   "mean_rank_when_found": null,
+   "median_latency_ms": 225,
+   "p95_latency_ms": 257
+  },
+  "ref_t2_B": {
+   "lenient_hits": 0,
+   "n": 60,
+   "hits": 60,
+   "recall": 1.0,
+   "mean_rank_when_found": 1,
+   "median_latency_ms": 416,
+   "p95_latency_ms": 480
+  },
+  "phrase_A": {
+   "lenient_hits": 26,
+   "n": 60,
+   "hits": 15,
+   "recall": 0.25,
+   "mean_rank_when_found": 2.73,
+   "median_latency_ms": 236,
+   "p95_latency_ms": 261
+  },
+  "phrase_B": {
+   "lenient_hits": 55,
+   "n": 60,
+   "hits": 47,
+   "recall": 0.783,
+   "mean_rank_when_found": 3.36,
+   "median_latency_ms": 238,
+   "p95_latency_ms": 268
+  }
+ }
+}
