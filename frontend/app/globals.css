@@ -172,6 +172,19 @@
   transition: background-color 9999s ease-in-out 0s;
 }
 
+/* Landing page FAQ: the answer eases in when a question is opened. */
+@media (prefers-reduced-motion: no-preference) {
+  details.faq[open] > p {
+    animation: faq-in 0.35s cubic-bezier(0.22, 1, 0.36, 1);
+  }
+}
+@keyframes faq-in {
+  from {
+    opacity: 0;
+    transform: translateY(-6px);
+  }
+}
+
 @layer base {
   * {
     @apply border-border outline-ring/50;

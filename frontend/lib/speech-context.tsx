@@ -1,6 +1,7 @@
 "use client";
 
 import { createContext, useContext, useState, ReactNode, useCallback, useEffect } from "react";
+import { useAuth } from "./auth-context";
 
 const VOICE_ID_STORAGE_KEY = "echolearn_voice_id";
 const DEFAULT_VOICE_ID = "lessac";
@@ -90,9 +91,11 @@ export function SpeechProvider({ children }: { children: ReactNode }) {
     });
   }, []);
 
+  // Only ask once someone is signed in: public pages (home, login) would otherwise get a 401.
+  const { isAuthenticated } = useAuth();
   useEffect(() => {
-    refreshVoiceSample();
-  }, [refreshVoiceSample]);
+    if (isAuthenticated) refreshVoiceSample();
+  }, [isAuthenticated, refreshVoiceSample]);
 
   useEffect(() => {
     const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
@@ -143,7 +146,7 @@ export function SpeechProvider({ children }: { children: ReactNode }) {
         setVoiceId,
         recognitionLang,
         setRecognitionLang,
-        hasVoiceSample,
+        hasVoiceSample: isAuthenticated && hasVoiceSample,
         refreshVoiceSample,
         useMyVoice,
         setUseMyVoice,
