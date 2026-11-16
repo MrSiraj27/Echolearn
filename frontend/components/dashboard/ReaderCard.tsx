@@ -17,7 +17,8 @@ import {
   ZoomOut,
 } from "lucide-react";
 import { api, ApiError, getMediaUrl } from "@/lib/api";
-import { buildSegments, findMatches, locateSelection, type HighlightRange } from "@/lib/reader";
+import { findMatches, formatPages, locateSelection, type HighlightRange } from "@/lib/reader";
+import ReadableText from "@/components/reader/ReadableText";
 import type { DocumentItem, DocumentPagesResponse } from "@/lib/types";
 
 const ZOOMS = [0.85, 1, 1.15, 1.3];
@@ -75,12 +76,12 @@ export default function ReaderCard({
     };
   }, [doc]);
 
-  const pages = useMemo(() => data?.pages ?? [], [data]);
+  const pages = useMemo(() => formatPages(data?.pages ?? []), [data]);
   const idx = Math.max(0, pages.findIndex((p) => p.page_number === pageNumber));
   const page = pages[idx];
   const matches = useMemo(() => findMatches(pages, query), [pages, query]);
 
-  const segments = useMemo(() => {
+  const ranges = useMemo(() => {
     if (!page) return [];
     const ranges: HighlightRange[] = matches
       .filter((m) => m.pageIndex === idx)
@@ -89,7 +90,7 @@ export default function ReaderCard({
       const loc = locateSelection(page.text, highlight.text);
       if (loc) ranges.push({ ...loc, kind: "explained" });
     }
-    return buildSegments(page.text, ranges);
+    return ranges;
   }, [page, matches, idx, highlight]);
 
   const go = useCallback(
@@ -184,22 +185,12 @@ export default function ReaderCard({
             ref={textRef}
             onMouseUp={capture}
             onTouchEnd={() => setTimeout(capture, 0)}
-            className="mx-auto min-h-full max-w-[68ch] rounded-md bg-white px-5 py-6 ring-1 ring-neutral-200 sm:px-8 sm:py-8 dark:bg-neutral-900 dark:ring-neutral-800"
+            className="mx-auto min-h-full max-w-[40rem] rounded-lg bg-white px-5 py-7 ring-1 ring-neutral-200 selection:bg-coral-soft sm:px-9 sm:py-9 dark:bg-neutral-900 dark:ring-neutral-800 dark:selection:bg-coral-active/40"
             style={{ fontSize: `${zoom * 0.95}rem` }}
           >
-            <p className="mb-4 font-serif text-[0.95em] text-neutral-500">{data.filename.replace(/\.[^.]+$/, "")} · page {page?.page_number}</p>
+            <p className="mb-5 font-sans text-[12px] uppercase tracking-wide text-neutral-500">{data.filename.replace(/\.[^.]+$/, "")} · page {page?.page_number}</p>
             {page?.text.trim() ? (
-              <p className="whitespace-pre-wrap break-words font-serif leading-[1.7] text-neutral-800 selection:bg-coral-soft dark:text-neutral-200 dark:selection:bg-coral-active/50">
-                {segments.map((s, i) =>
-                  s.kind ? (
-                    <mark key={i} className={s.kind === "explained" ? "rounded-sm bg-amber-100 text-inherit underline decoration-amber-400 decoration-2 underline-offset-2 dark:bg-amber-900/40" : "rounded-sm bg-yellow-200 text-inherit dark:bg-yellow-700/60"}>
-                      {s.text}
-                    </mark>
-                  ) : (
-                    <span key={i}>{s.text}</span>
-                  )
-                )}
-              </p>
+              <ReadableText text={page.text} blocks={page.blocks} ranges={ranges} />
             ) : (
               <p className="text-sm text-neutral-400">No text on this page.</p>
             )}

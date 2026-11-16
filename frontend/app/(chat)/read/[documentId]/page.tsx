@@ -17,12 +17,12 @@ import {
   ZoomOut,
 } from "lucide-react";
 import ExplanationPanel, { type ExplanationThread } from "@/components/reader/ExplanationPanel";
+import ReadableText from "@/components/reader/ReadableText";
 import { api, ApiError, getMediaUrl } from "@/lib/api";
 import { useChatStore } from "@/lib/chat-store";
 import {
-  buildSegments,
-  detectHeadings,
   findMatches,
+  formatPages,
   locateSelection,
   type HighlightRange,
   MAX_SEARCH_MATCHES,
@@ -102,11 +102,24 @@ export default function ReaderPage() {
     };
   }, [documentId]);
 
-  const pages = useMemo(() => doc?.pages ?? [], [doc]);
+  // Reflow extracted PDF lines into paragraphs, headings and code for comfortable reading.
+  const pages = useMemo(() => formatPages(doc?.pages ?? []), [doc]);
   const total = pages.length;
   const page = pages[pageIndex];
   const isPdf = doc?.file_type === "pdf";
-  const headings = useMemo(() => detectHeadings(pages), [pages]);
+  const headings = useMemo(() => {
+    const seen = new Set<string>();
+    const out: { pageIndex: number; title: string }[] = [];
+    pages.forEach((p, pageIndex) =>
+      p.blocks.forEach((b) => {
+        const title = p.text.slice(b.start, b.end).trim();
+        if (b.kind !== "heading" || seen.has(title.toLowerCase()) || out.length >= 200) return;
+        seen.add(title.toLowerCase());
+        out.push({ pageIndex, title });
+      })
+    );
+    return out;
+  }, [pages]);
   const matches = useMemo(() => findMatches(pages, query), [pages, query]);
   const zoom = ZOOM_STEPS[zoomStep];
 
@@ -144,15 +157,14 @@ export default function ReaderPage() {
   }, [activeMatch, pageIndex, query]);
 
   // ---- highlights for the current page ----
-  const segments = useMemo(() => {
-    if (!page) return [];
+  const highlightRanges = useMemo(() => {
     const ranges: HighlightRange[] = [];
     matches.forEach((m, i) => {
       if (m.pageIndex === pageIndex) ranges.push({ start: m.start, end: m.end, kind: i === activeMatch ? "active-match" : "match" });
     });
     if (explained && explained.pageIndex === pageIndex) ranges.push({ ...explained, kind: "explained" });
-    return buildSegments(page.text, ranges);
-  }, [page, matches, activeMatch, pageIndex, explained]);
+    return ranges;
+  }, [matches, activeMatch, pageIndex, explained]);
 
   // ---- selection -> "Explain with AI" ----
   const captureSelection = useCallback(() => {
@@ -493,43 +505,26 @@ export default function ReaderPage() {
                 />
               </div>
             ) : (
-              <div ref={scrollRef} className="flex-1 overflow-y-auto" onScroll={() => pending && setPending(null)}>
+              <div ref={scrollRef} className="flex-1 overflow-y-auto px-3 sm:px-6" onScroll={() => pending && setPending(null)}>
                 <article
                   ref={textRef}
                   onMouseUp={captureSelection}
                   onKeyUp={(e) => e.shiftKey && captureSelection()}
                   onTouchEnd={() => setTimeout(captureSelection, 0)}
-                  className="mx-auto max-w-3xl px-5 py-8 sm:px-10"
-                  style={{ fontSize: `${zoom}rem` }}
+                  className="mx-auto my-4 max-w-[44rem] rounded-xl bg-white px-6 py-9 shadow-sm ring-1 ring-neutral-200 selection:bg-coral-soft sm:my-8 sm:px-12 sm:py-12 dark:bg-neutral-900 dark:ring-neutral-800 dark:selection:bg-coral-active/40"
+                  style={{ fontSize: `${zoom * 1.0625}rem` }}
                   aria-label={`Page ${page?.page_number} of ${total}`}
                 >
                   {page && page.text.trim() ? (
-                    <p className="whitespace-pre-wrap break-words font-serif leading-[1.75] text-neutral-800 dark:text-neutral-200 selection:bg-amber-200 dark:selection:bg-amber-800">
-                      {segments.map((s, i) =>
-                        s.kind ? (
-                          <mark
-                            key={i}
-                            data-active-match={s.active ? "" : undefined}
-                            className={
-                              s.kind === "explained"
-                                ? "rounded-sm bg-amber-100 text-inherit underline decoration-amber-400 decoration-2 underline-offset-2 dark:bg-amber-900/40"
-                                : s.kind === "active-match"
-                                  ? "rounded-sm bg-orange-300 text-neutral-900 dark:bg-orange-500"
-                                  : "rounded-sm bg-yellow-200 text-inherit dark:bg-yellow-700/60"
-                            }
-                          >
-                            {s.text}
-                          </mark>
-                        ) : (
-                          <span key={i}>{s.text}</span>
-                        )
-                      )}
-                    </p>
+                    <ReadableText text={page.text} blocks={page.blocks} ranges={highlightRanges} />
                   ) : (
                     <p className="text-sm text-neutral-400">
                       No text was found on this page{isPdf ? " (it may be an image). Switch to Original to see it." : "."}
                     </p>
                   )}
+                  <p className="mt-10 text-center font-sans text-[12px] tabular-nums text-neutral-400" aria-hidden>
+                    {page?.page_number} / {total}
+                  </p>
                 </article>
               </div>
             )}
