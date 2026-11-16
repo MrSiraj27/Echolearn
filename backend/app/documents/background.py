@@ -70,17 +70,32 @@ def _mark_failed_busy(document_id: uuid.UUID) -> None:
     logger.error("Document %s timed out waiting for a busy server to free up", document_id)
 
 
-def run_parsing_task(document_id: uuid.UUID, file_path: str, extension: str) -> None:
+def _load_saved_pages(file_path: str) -> list[dict] | None:
+    """The text a previous run already extracted (parsed.json), if it's there and usable."""
+    path = parsed_text_path(Path(file_path).parent)
+    try:
+        pages = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return None
+    if not isinstance(pages, list) or not any(((p or {}).get("text") or "").strip() for p in pages):
+        return None
+    return pages
+
+
+def run_parsing_task(document_id: uuid.UUID, file_path: str, extension: str, reuse_parsed: bool = False) -> None:
+    """`reuse_parsed=True` (used by retries) skips extraction when an earlier run already
+    saved the text: re-transcribing audio or re-OCR-ing a scan can take many minutes on a
+    small server, and is pointless when only the indexing step failed."""
     if not _parse_semaphore.acquire(timeout=MAX_QUEUE_WAIT_SECONDS):
         _mark_failed_busy(document_id)
         return
     try:
-        _run_parsing_task(document_id, file_path, extension)
+        _run_parsing_task(document_id, file_path, extension, reuse_parsed)
     finally:
         _parse_semaphore.release()
 
 
-def _run_parsing_task(document_id: uuid.UUID, file_path: str, extension: str) -> None:
+def _run_parsing_task(document_id: uuid.UUID, file_path: str, extension: str, reuse_parsed: bool = False) -> None:
     db: Session = SessionLocal()
     try:
         document = db.query(Document).filter(Document.id == document_id).first()
@@ -88,49 +103,56 @@ def _run_parsing_task(document_id: uuid.UUID, file_path: str, extension: str) ->
             logger.error("Document %s not found for parsing", document_id)
             return
 
-        document.status = DocumentStatus.parsing
+        page_dicts = _load_saved_pages(file_path) if reuse_parsed else None
+        # Saved text skips straight to indexing ("embedded" shows as "Finishing…").
+        document.status = DocumentStatus.embedded if page_dicts else DocumentStatus.parsing
         document.error_message = None
         db.commit()
 
+        if page_dicts:
+            logger.info("Document %s: reusing %d already-extracted pages", document_id, len(page_dicts))
+            document.page_count = len(page_dicts)
+            db.commit()
+        else:
+            try:
+                pages = parse_file(file_path, extension)
+            except DocumentParseError as exc:
+                logger.warning("Document %s could not be parsed: %s", document_id, exc)
+                _fail(db, document, str(exc))
+                return
+            except Exception:
+                logger.exception("Failed to parse document %s", document_id)
+                _fail(db, document, MSG_UNREADABLE)
+                return
+
+            # A file with no extractable text would otherwise become "ready" with nothing to
+            # search: every question about it would come back "not found" with no explanation.
+            if not any((p.text or "").strip() or p.tables for p in pages):
+                _fail(db, document, MSG_NO_TEXT)
+                return
+
+            page_dicts = [
+                {
+                    "page_number": p.page_number,
+                    "text": p.text,
+                    "tables": [asdict(t) for t in p.tables],
+                    "start_time": p.start_time,
+                    "end_time": p.end_time,
+                }
+                for p in pages
+            ]
+            output_path = parsed_text_path(Path(file_path).parent)
+            output_path.write_text(json.dumps(page_dicts), encoding="utf-8")
+
+            document.page_count = len(pages)
+            db.commit()
+
+            # Back up the original file + parsed text now that both exist on local disk — a
+            # no-op unless R2_* is configured (see app/documents/object_storage.py).
+            upload_dir(f"{document.user_id}/{document.id}", Path(file_path).parent)
+
         try:
-            pages = parse_file(file_path, extension)
-        except DocumentParseError as exc:
-            logger.warning("Document %s could not be parsed: %s", document_id, exc)
-            _fail(db, document, str(exc))
-            return
-        except Exception:
-            logger.exception("Failed to parse document %s", document_id)
-            _fail(db, document, MSG_UNREADABLE)
-            return
-
-        # A file with no extractable text would otherwise become "ready" with nothing to
-        # search: every question about it would come back "not found" with no explanation.
-        if not any((p.text or "").strip() or p.tables for p in pages):
-            _fail(db, document, MSG_NO_TEXT)
-            return
-
-        page_dicts = [
-            {
-                "page_number": p.page_number,
-                "text": p.text,
-                "tables": [asdict(t) for t in p.tables],
-                "start_time": p.start_time,
-                "end_time": p.end_time,
-            }
-            for p in pages
-        ]
-        output_path = parsed_text_path(Path(file_path).parent)
-        output_path.write_text(json.dumps(page_dicts), encoding="utf-8")
-
-        document.page_count = len(pages)
-        db.commit()
-
-        # Back up the original file + parsed text now that both exist on local disk — a
-        # no-op unless R2_* is configured (see app/documents/object_storage.py).
-        upload_dir(f"{document.user_id}/{document.id}", Path(file_path).parent)
-
-        try:
-            full_text = "\n".join(p.text for p in pages).lower()
+            full_text = "\n".join(p.get("text") or "" for p in page_dicts).lower()
             keywords = get_config_value("moderation").get("flag_keywords", [])
             matched = next((kw for kw in keywords if kw.lower() in full_text), None)
             if matched:

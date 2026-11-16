@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { RefreshCw } from "lucide-react";
 import { adminApi } from "@/lib/admin-api";
+import IndexHealthCard from "@/components/admin/IndexHealthCard";
 
 interface ProviderStat {
   provider: string;
@@ -110,6 +111,8 @@ export default function AdminSystemPage() {
       <p className="text-sm text-neutral-500 dark:text-neutral-400 mb-6">
         Provider usage, error rates, stuck jobs, and storage — separate from business analytics.
       </p>
+
+      <IndexHealthCard />
 
       {loading && <p className="text-sm text-neutral-400">Loading...</p>}
 

@@ -342,7 +342,7 @@ def retry_document(
     document.status = DocumentStatus.uploaded
     document.error_message = None
     db.commit()
-    background_tasks.add_task(run_parsing_task, document.id, file_path, document.file_type)
+    background_tasks.add_task(run_parsing_task, document.id, file_path, document.file_type, True)
     return DocumentStatusResponse(
         id=document.id, status=document.status, page_count=document.page_count, filename=document.filename
     )

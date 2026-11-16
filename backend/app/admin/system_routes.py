@@ -192,7 +192,7 @@ def retry_document_processing(
     )
     db.commit()
 
-    background_tasks.add_task(run_parsing_task, document.id, document.storage_path, document.file_type)
+    background_tasks.add_task(run_parsing_task, document.id, document.storage_path, document.file_type, True)
 
 
 @router.get("/storage", response_model=StorageResponse)
@@ -287,3 +287,77 @@ def answer_feedback(
             }
         )
     return {"totals": totals, "items": items}
+
+
+def _safe_error(exc: Exception) -> str:
+    """Exception type and message for the admin, with anything that looks like a key removed."""
+    import re
+
+    text = f"{type(exc).__name__}: {exc}"
+    text = re.sub(r"(api[_-]?key|token|password|secret)=\S+", r"\1=[hidden]", text, flags=re.I)
+    return text[:600]
+
+
+@router.post("/index-health")
+def index_health():
+    """Runs each step a document upload needs to become searchable, on THIS server, and
+    reports which one fails and why. A test vector is written and deleted again; no user
+    data is read or changed."""
+    import time
+    from urllib.parse import urlparse
+
+    from app.core.config import settings as cfg
+
+    steps: list[dict] = []
+
+    def run(name: str, fn):
+        started = time.perf_counter()
+        try:
+            detail = fn()
+            steps.append({"step": name, "ok": True, "detail": detail, "ms": round((time.perf_counter() - started) * 1000)})
+            return True
+        except Exception as exc:  # report, don't raise: the point is to see every failure
+            steps.append({"step": name, "ok": False, "detail": _safe_error(exc), "ms": round((time.perf_counter() - started) * 1000)})
+            return False
+
+    backend = "Qdrant Cloud" if cfg.QDRANT_URL else "Local Chroma"
+    host = urlparse(cfg.QDRANT_URL).hostname if cfg.QDRANT_URL else cfg.CHROMA_PATH if hasattr(cfg, "CHROMA_PATH") else "local"
+    steps.append({"step": "Configuration", "ok": True, "detail": f"{backend} ({host})", "ms": 0})
+
+    vector: dict = {}
+
+    def embed():
+        from app.rag.embeddings import get_embeddings
+
+        vector["v"] = get_embeddings(["EchoLearn index health check"])[0]
+        return f"Embedding model loaded; vector size {len(vector['v'])}"
+
+    def connect():
+        from app.rag.vectorstore import get_client
+
+        client = get_client()
+        if cfg.QDRANT_URL:
+            from app.rag.vectorstore_qdrant import COLLECTION_NAME
+
+            info = client.get_collection(COLLECTION_NAME)
+            size = info.config.params.vectors.size
+            return f"Collection '{COLLECTION_NAME}': status {info.status}, {info.points_count} stored chunks, vector size {size}"
+        return "Local vector store opened"
+
+    def write_and_delete():
+        import uuid as _uuid
+
+        from app.rag.vectorstore import add_chunks, delete_document
+
+        probe = _uuid.uuid4()
+        add_chunks(probe, probe, [{"text": "health check", "metadata": {
+            "document_id": str(probe), "user_id": str(probe), "filename": "health-check",
+            "page_number": 1, "chunk_type": "text",
+        }}])
+        delete_document(probe)
+        return "Wrote a test chunk and deleted it again"
+
+    if run("Embedding model", embed):
+        if run("Connect to vector store", connect):
+            run("Write and delete a test chunk", write_and_delete)
+    return {"ok": all(s["ok"] for s in steps), "steps": steps}

@@ -192,7 +192,7 @@ class RetryAndRename(unittest.TestCase):
             r.delete_vector_chunks = original
         self.assertEqual(doc.status, DocumentStatus.uploaded)
         self.assertIsNone(doc.error_message)
-        self.assertEqual(tasks.calls[0][1:], (doc.id, path, "pdf"))
+        self.assertEqual(tasks.calls[0][1:], (doc.id, path, "pdf", True))  # retry reuses saved text
 
     def test_rename_keeps_extension_and_rejects_slashes(self):
         doc = _doc(filename="old.pdf")
