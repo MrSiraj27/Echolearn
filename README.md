@@ -7,7 +7,14 @@ infographics, and listen to answers read aloud — all grounded in your own file
 - **Frontend**: Next.js 16 + React 19 + Tailwind (`frontend/`)
 - **Backend**: FastAPI + SQLAlchemy + Postgres + Chroma (`backend/`)
 
-## Quick start (one command)
+## Run it on Windows (one double-click)
+
+Double-click **`setup.bat`** once. It installs Python, Node.js and PostgreSQL if
+needed, creates the database, asks for your Groq/Gemini keys and your login, and
+starts the app. After that, double-click **`start.bat`**. Full steps:
+**[HOW-TO-RUN.md](HOW-TO-RUN.md)**.
+
+## Quick start (manual, any OS)
 
 ```bash
 npm install

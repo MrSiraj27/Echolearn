@@ -1,0 +1,17 @@
+{
+ "document_id": "f7a19f97-2017-4157-aacd-49f5db267abd",
+ "bytes": 17565898,
+ "upload_seconds": 2.3,
+ "status_first_seen_at_s": {
+  "parsing": 4.5,
+  "embedded": 123.0,
+  "ready": 128.0
+ },
+ "final": {
+  "id": "f7a19f97-2017-4157-aacd-49f5db267abd",
+  "status": "ready",
+  "page_count": 417,
+  "filename": "mml-book.pdf",
+  "error_message": null
+ }
+}

@@ -103,7 +103,7 @@ BLOCKS = [
     ("h3", "3.7.1 FastAPI"),
     ("p", "FastAPI [[fastapi]] is a Python web framework built on type hints. Request and response bodies are "
           "validated automatically and an OpenAPI description is generated, which was useful for checking the "
-          "size of the API during this project (139 endpoints). Python was the natural choice because the PDF, "
+          "size of the API during this project (147 endpoints). Python was the natural choice because the PDF, "
           "OCR, speech and embedding libraries are all available there."),
     ("h3", "3.7.2 Next.js and React"),
     ("p", "The web client uses Next.js [[nextjs]] with React. Pages are organised by route groups, which let the "

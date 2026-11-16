@@ -1,0 +1,995 @@
+{
+ "summary": {
+  "document": {
+   "file": "mml-book.pdf",
+   "pages": 417,
+   "chunks": 1226,
+   "bytes": 17565898,
+   "processing_seconds": 128.0,
+   "indexed_at_seconds": 123.0
+  },
+  "retrieval": {
+   "questions": 22,
+   "dense_hit_at_8": 20,
+   "hybrid_hit_at_8": 20,
+   "dense_median_ms": 26.5,
+   "hybrid_median_ms": 26.0
+  },
+  "answers": {
+   "questions": 22,
+   "answered": 21,
+   "citation_hit": 20,
+   "key_terms_present": 17,
+   "median_seconds": 3.6500000000000004,
+   "max_seconds": 61.4
+  },
+  "refusals": {
+   "questions": 8,
+   "correctly_refused": 7
+  },
+  "explain": {
+   "cases": 3,
+   "ok": 2
+  },
+  "llm_calls_by_provider": {
+   "gemini failed": 4,
+   "gemini ok": 5,
+   "groq failed": 9,
+   "groq ok": 77
+  }
+ },
+ "retrieval": [
+  {
+   "question": "Define the rank of a matrix.",
+   "category": "definition",
+   "truth_pages": [
+    50,
+    51,
+    53
+   ],
+   "dense_hit": true,
+   "hybrid_hit": true,
+   "dense_ms": 1364,
+   "hybrid_ms": 240
+  },
+  {
+   "question": "What is a positive definite matrix?",
+   "category": "definition",
+   "truth_pages": [
+    79,
+    80
+   ],
+   "dense_hit": true,
+   "hybrid_hit": true,
+   "dense_ms": 27,
+   "hybrid_ms": 27
+  },
+  {
+   "question": "What is an orthogonal matrix?",
+   "category": "definition",
+   "truth_pages": [
+    84
+   ],
+   "dense_hit": true,
+   "hybrid_hit": true,
+   "dense_ms": 25,
+   "hybrid_ms": 26
+  },
+  {
+   "question": "What is an inner product?",
+   "category": "definition",
+   "truth_pages": [
+    78,
+    79,
+    81,
+    86,
+    87,
+    201
+   ],
+   "dense_hit": true,
+   "hybrid_hit": true,
+   "dense_ms": 24,
+   "hybrid_ms": 27
+  },
+  {
+   "question": "What is the determinant of a matrix?",
+   "category": "definition",
+   "truth_pages": [
+    105,
+    107,
+    109
+   ],
+   "dense_hit": true,
+   "hybrid_hit": true,
+   "dense_ms": 28,
+   "hybrid_ms": 25
+  },
+  {
+   "question": "What is the eigenvalue equation?",
+   "category": "definition",
+   "truth_pages": [
+    111,
+    113,
+    115,
+    117,
+    119,
+    131,
+    342
+   ],
+   "dense_hit": true,
+   "hybrid_hit": true,
+   "dense_ms": 24,
+   "hybrid_ms": 26
+  },
+  {
+   "question": "What does the singular value decomposition theorem state?",
+   "category": "theorem",
+   "truth_pages": [
+    125,
+    127,
+    129,
+    131,
+    132,
+    133
+   ],
+   "dense_hit": true,
+   "hybrid_hit": true,
+   "dense_ms": 24,
+   "hybrid_ms": 26
+  },
+  {
+   "question": "What is the Cholesky decomposition?",
+   "category": "definition",
+   "truth_pages": [
+    104,
+    105,
+    120,
+    121,
+    140,
+    141,
+    210
+   ],
+   "dense_hit": true,
+   "hybrid_hit": true,
+   "dense_ms": 27,
+   "hybrid_ms": 24
+  },
+  {
+   "question": "What is the Jacobian?",
+   "category": "definition",
+   "truth_pages": [
+    146,
+    152,
+    156,
+    157,
+    158,
+    159,
+    161,
+    162,
+    167,
+    177,
+    225,
+    226
+   ],
+   "dense_hit": true,
+   "hybrid_hit": true,
+   "dense_ms": 24,
+   "hybrid_ms": 27
+  },
+  {
+   "question": "How does backpropagation compute gradients?",
+   "category": "concept",
+   "truth_pages": [
+    165,
+    167,
+    169
+   ],
+   "dense_hit": true,
+   "hybrid_hit": true,
+   "dense_ms": 26,
+   "hybrid_ms": 25
+  },
+  {
+   "question": "What is a convex function?",
+   "category": "definition",
+   "truth_pages": [
+    233,
+    242,
+    243,
+    244,
+    245,
+    247,
+    248,
+    249,
+    251,
+    253
+   ],
+   "dense_hit": true,
+   "hybrid_hit": true,
+   "dense_ms": 26,
+   "hybrid_ms": 24
+  },
+  {
+   "question": "What are Lagrange multipliers used for?",
+   "category": "concept",
+   "truth_pages": [
+    242,
+    245,
+    251,
+    364,
+    391
+   ],
+   "dense_hit": true,
+   "hybrid_hit": true,
+   "dense_ms": 24,
+   "hybrid_ms": 27
+  },
+  {
+   "question": "What is a conjugate prior?",
+   "category": "definition",
+   "truth_pages": [
+    214
+   ],
+   "dense_hit": true,
+   "hybrid_hit": true,
+   "dense_ms": 28,
+   "hybrid_ms": 24
+  },
+  {
+   "question": "State Bayes' theorem.",
+   "category": "theorem",
+   "truth_pages": [
+    191,
+    192,
+    211,
+    214,
+    275,
+    280,
+    282,
+    291,
+    312
+   ],
+   "dense_hit": true,
+   "hybrid_hit": true,
+   "dense_ms": 25,
+   "hybrid_ms": 27
+  },
+  {
+   "question": "What is maximum likelihood estimation?",
+   "category": "concept",
+   "truth_pages": [
+    271,
+    299,
+    301
+   ],
+   "dense_hit": true,
+   "hybrid_hit": true,
+   "dense_ms": 27,
+   "hybrid_ms": 24
+  },
+  {
+   "question": "What is maximum a posteriori (MAP) estimation?",
+   "category": "concept",
+   "truth_pages": [
+    274,
+    306
+   ],
+   "dense_hit": true,
+   "hybrid_hit": true,
+   "dense_ms": 29,
+   "hybrid_ms": 25
+  },
+  {
+   "question": "How does the EM algorithm fit a Gaussian mixture model?",
+   "category": "algorithm",
+   "truth_pages": [
+    366,
+    373
+   ],
+   "dense_hit": true,
+   "hybrid_hit": true,
+   "dense_ms": 25,
+   "hybrid_ms": 24
+  },
+  {
+   "question": "What does PCA maximize when choosing the principal subspace?",
+   "category": "concept",
+   "truth_pages": [
+    326,
+    327,
+    329
+   ],
+   "dense_hit": true,
+   "hybrid_hit": true,
+   "dense_ms": 34,
+   "hybrid_ms": 25
+  },
+  {
+   "question": "What is the kernel trick in support vector machines?",
+   "category": "concept",
+   "truth_pages": [
+    66,
+    79,
+    101,
+    131,
+    322,
+    353,
+    395,
+    396,
+    399
+   ],
+   "dense_hit": true,
+   "hybrid_hit": true,
+   "dense_ms": 25,
+   "hybrid_ms": 29
+  },
+  {
+   "question": "What is the margin in a support vector machine?",
+   "category": "concept",
+   "truth_pages": [
+    269,
+    378,
+    380,
+    381,
+    382,
+    383,
+    384,
+    385,
+    386,
+    387,
+    388,
+    389
+   ],
+   "dense_hit": true,
+   "hybrid_hit": true,
+   "dense_ms": 27,
+   "hybrid_ms": 27
+  },
+  {
+   "question": "What does Example 4.5 compute?",
+   "category": "reference",
+   "truth_pages": [
+    113,
+    114
+   ],
+   "dense_hit": false,
+   "hybrid_hit": false,
+   "dense_ms": 41,
+   "hybrid_ms": 42
+  },
+  {
+   "question": "What does Definition 6.13 define?",
+   "category": "reference",
+   "truth_pages": [
+    214
+   ],
+   "dense_hit": false,
+   "hybrid_hit": false,
+   "dense_ms": 41,
+   "hybrid_ms": 43
+  }
+ ],
+ "answers": [
+  {
+   "question": "Define the rank of a matrix.",
+   "category": "definition",
+   "truth_pages": [
+    50,
+    51,
+    53
+   ],
+   "cited_pages": [
+    139,
+    138,
+    53,
+    120,
+    28,
+    12,
+    110
+   ],
+   "answered": true,
+   "citation_hit": true,
+   "key_terms_present": true,
+   "seconds": 5.3,
+   "answer_excerpt": "The rank of a matrix \\(A\\) is the number of linearly independent rows (or equivalently, columns) of \\(A\\). In other words, it counts how many rows or columns cannot be expressed as linear combinations of the others (e.g., in Example 2.18 the matrix has two linearly independent rows/columns, so \\(\\op"
+  },
+  {
+   "question": "What is a positive definite matrix?",
+   "category": "definition",
+   "truth_pages": [
+    79,
+    80
+   ],
+   "cited_pages": [
+    120,
+    80,
+    133,
+    197,
+    117
+   ],
+   "answered": true,
+   "citation_hit": true,
+   "key_terms_present": true,
+   "seconds": 3.0,
+   "answer_excerpt": "A positive‑definite matrix is a symmetric real matrix \\(A\\in\\mathbb{R}^{n\\times n}\\) that satisfies  \n\n\\[\nx^{\\top} A x > 0 \\qquad\\text{for every non‑zero vector }x\\in\\mathbb{R}^{n}.\n\\]\n\nEquivalently, its quadratic form is always strictly positive, its diagonal entries are positive, and its only null"
+  },
+  {
+   "question": "What is an orthogonal matrix?",
+   "category": "definition",
+   "truth_pages": [
+    84
+   ],
+   "cited_pages": [
+    84,
+    85,
+    95,
+    129,
+    87,
+    101
+   ],
+   "answered": true,
+   "citation_hit": true,
+   "key_terms_present": false,
+   "seconds": 2.8,
+   "answer_excerpt": "An orthogonal matrix is a square \\(n\\times n\\) real matrix whose columns (and rows) form an orthonormal set, i.e.  \n\n\\[\nAA^{\\top}=I=A^{\\top}A \\qquad\\text{and consequently}\\qquad A^{-1}=A^{\\top}.\n\\]\n\nBecause its columns are orthonormal, multiplying a vector by an orthogonal matrix preserves both the "
+  },
+  {
+   "question": "What is an inner product?",
+   "category": "definition",
+   "truth_pages": [
+    78,
+    79,
+    81,
+    86,
+    87,
+    201
+   ],
+   "cited_pages": [
+    78,
+    79,
+    394,
+    87,
+    100,
+    43
+   ],
+   "answered": true,
+   "citation_hit": true,
+   "key_terms_present": true,
+   "seconds": 4.8,
+   "answer_excerpt": "An **inner product** is a function ⟨·,·⟩ that takes two vectors from a vector space V and returns a real number, satisfying three key properties:\n\n* **Bilinearity** – it is linear in each argument separately:  \n  ⟨λx + ψy, z⟩ = λ⟨x,z⟩ + ψ⟨y,z⟩ and ⟨x, λy + ψz⟩ = λ⟨x,y⟩ + ψ⟨x,z⟩ for all scalars λ, ψ "
+  },
+  {
+   "question": "What is the determinant of a matrix?",
+   "category": "definition",
+   "truth_pages": [
+    105,
+    107,
+    109
+   ],
+   "cited_pages": [
+    106,
+    105,
+    107,
+    141,
+    118,
+    109
+   ],
+   "answered": true,
+   "citation_hit": true,
+   "key_terms_present": true,
+   "seconds": 5.1,
+   "answer_excerpt": "The determinant of a square matrix \\(A\\in\\mathbb{R}^{n\\times n}\\) is a real‑valued function that assigns to \\(A\\) the signed volume of the \\(n\\)-dimensional parallelepiped spanned by its column vectors. Formally, it is denoted \\(\\det(A)\\) (or \\(|A|\\)) and maps the matrix to a single number (page 105"
+  },
+  {
+   "question": "What is the eigenvalue equation?",
+   "category": "definition",
+   "truth_pages": [
+    111,
+    113,
+    115,
+    117,
+    119,
+    131,
+    342
+   ],
+   "cited_pages": [
+    113,
+    118,
+    112,
+    340,
+    111,
+    117,
+    123
+   ],
+   "answered": true,
+   "citation_hit": true,
+   "key_terms_present": true,
+   "seconds": 2.6,
+   "answer_excerpt": "The eigenvalue equation is  \n\n\\[\nA\\,x = \\lambda\\,x,\n\\]\n\nwhere \\(A\\) is the matrix, \\(\\lambda\\) is an eigenvalue (a scalar), and \\(x\\neq 0\\) is the corresponding eigenvector. (p. 111)"
+  },
+  {
+   "question": "What does the singular value decomposition theorem state?",
+   "category": "theorem",
+   "truth_pages": [
+    125,
+    127,
+    129,
+    131,
+    132,
+    133
+   ],
+   "cited_pages": [
+    125,
+    129,
+    132,
+    135,
+    127,
+    130
+   ],
+   "answered": true,
+   "citation_hit": true,
+   "key_terms_present": true,
+   "seconds": 3.6,
+   "answer_excerpt": "The singular value decomposition theorem states that any \\(A\\in\\mathbb{R}^{m\\times n}\\) of rank \\(r\\) can be expressed as  \n\n\\[\nA = U\\,\\Sigma\\,V^{\\top},\n\\]\n\nwhere \\(U\\in\\mathbb{R}^{m\\times m}\\) and \\(V\\in\\mathbb{R}^{n\\times n}\\) are orthogonal matrices (their columns are the left‑ and right‑singular"
+  },
+  {
+   "question": "What is the Cholesky decomposition?",
+   "category": "definition",
+   "truth_pages": [
+    104,
+    105,
+    120,
+    121,
+    140,
+    141,
+    210
+   ],
+   "cited_pages": [
+    120,
+    121,
+    210,
+    4,
+    104
+   ],
+   "answered": true,
+   "citation_hit": true,
+   "key_terms_present": true,
+   "seconds": 5.0,
+   "answer_excerpt": "The Cholesky decomposition is a factorisation of a **symmetric, positive‑definite matrix** \\(A\\) into the product  \n\n\\[\nA = LL^{\\top},\n\\]\n\nwhere \\(L\\) is a **lower‑triangular matrix** whose diagonal entries are all positive. This factorisation is unique (the matrix \\(L\\) is called the *Cholesky fact"
+  },
+  {
+   "question": "What is the Jacobian?",
+   "category": "definition",
+   "truth_pages": [
+    146,
+    152,
+    156,
+    157,
+    158,
+    159,
+    161,
+    162,
+    167,
+    177,
+    225,
+    226
+   ],
+   "cited_pages": [
+    158,
+    156,
+    157,
+    162,
+    146
+   ],
+   "answered": true,
+   "citation_hit": true,
+   "key_terms_present": true,
+   "seconds": 3.2,
+   "answer_excerpt": "The Jacobian is the matrix that collects all first‑order partial derivatives of a vector‑valued function \\(f:\\mathbb{R}^{n}\\to\\mathbb{R}^{m}\\).  Its \\((i,j)\\) entry is \\(\\displaystyle J_{ij}= \\frac{\\partial f_i}{\\partial x_j}\\), so the Jacobian has size \\(m\\times n\\) (a row‑vector when \\(m=1\\)) (mml"
+  },
+  {
+   "question": "How does backpropagation compute gradients?",
+   "category": "concept",
+   "truth_pages": [
+    165,
+    167,
+    169
+   ],
+   "cited_pages": [
+    165,
+    169,
+    146,
+    167,
+    261,
+    155,
+    168
+   ],
+   "answered": true,
+   "citation_hit": true,
+   "key_terms_present": true,
+   "seconds": 2.9,
+   "answer_excerpt": "Backpropagation computes gradients by applying the chain rule **backward** through the computational graph of a neural network:\n\n* **Forward pass** – The network evaluates the function \\(y = f(x)\\) by successively applying each layer’s operation, storing all intermediate values (the nodes of the gra"
+  },
+  {
+   "question": "What is a convex function?",
+   "category": "definition",
+   "truth_pages": [
+    233,
+    242,
+    243,
+    244,
+    245,
+    247,
+    248,
+    249,
+    251,
+    253
+   ],
+   "cited_pages": [
+    244,
+    243,
+    248,
+    242,
+    249,
+    253,
+    233
+   ],
+   "answered": true,
+   "citation_hit": true,
+   "key_terms_present": true,
+   "seconds": 3.7,
+   "answer_excerpt": "A convex function is one that lies below the straight line segment joining any two points on its graph. Formally, a function f is convex on its domain if for all x, y and any scalar θ with 0 ≤ θ ≤ 1,\n\n\\[\nf\\big(\\theta x + (1-\\theta) y\\big) \\;\\le\\; \\theta\\,f(x) + (1-\\theta)\\,f(y)\n\\] \n(​mml‑book.pdf, p"
+  },
+  {
+   "question": "What are Lagrange multipliers used for?",
+   "category": "concept",
+   "truth_pages": [
+    242,
+    245,
+    251,
+    364,
+    391
+   ],
+   "cited_pages": [
+    245,
+    389,
+    240,
+    241,
+    364,
+    242,
+    145
+   ],
+   "answered": true,
+   "citation_hit": true,
+   "key_terms_present": true,
+   "seconds": 7.2,
+   "answer_excerpt": "Lagrange multipliers are introduced to handle constraints when optimizing a function. By adding a term λᵀg(x) to the original objective f(x), the Lagrangian L(x,λ)=f(x)+λᵀg(x) turns a constrained problem into an unconstrained one in the variables x (and a dual problem in the multipliers λ) (see mml‑"
+  },
+  {
+   "question": "What is a conjugate prior?",
+   "category": "definition",
+   "truth_pages": [
+    214
+   ],
+   "cited_pages": [
+    219,
+    214,
+    215,
+    318,
+    314,
+    220
+   ],
+   "answered": true,
+   "citation_hit": true,
+   "key_terms_present": true,
+   "seconds": 2.4,
+   "answer_excerpt": "A conjugate prior is a prior distribution that, when combined with a given likelihood function, yields a posterior distribution of the same functional form (i.e., the same family) as the prior. This property lets us update the prior’s parameters algebraically to obtain the posterior (Definition 6.13"
+  },
+  {
+   "question": "State Bayes' theorem.",
+   "category": "theorem",
+   "truth_pages": [
+    191,
+    192,
+    211,
+    214,
+    275,
+    280,
+    282,
+    291,
+    312
+   ],
+   "cited_pages": [
+    191,
+    192,
+    291,
+    214,
+    413,
+    312
+   ],
+   "answered": true,
+   "citation_hit": true,
+   "key_terms_present": false,
+   "seconds": 2.2,
+   "answer_excerpt": "Bayes’ theorem states that the posterior probability of \\(x\\) given an observed \\(y\\) is  \n\n\\[\np(x \\mid y)=\\frac{p(y \\mid x)\\,p(x)}{p(y)} .\n\\]\n\n(“Mathematics for Machine Learning”, p. 191)"
+  },
+  {
+   "question": "What is maximum likelihood estimation?",
+   "category": "concept",
+   "truth_pages": [
+    271,
+    299,
+    301
+   ],
+   "cited_pages": [
+    299,
+    275,
+    357,
+    274,
+    319,
+    278
+   ],
+   "answered": true,
+   "citation_hit": true,
+   "key_terms_present": true,
+   "seconds": 3.4,
+   "answer_excerpt": "Maximum likelihood estimation (MLE) is a method for finding the model parameters θ that make the observed training data most probable under the assumed probabilistic model.\n\nIn MLE we treat the likelihood p(y | x, θ) as a function of θ (not a probability distribution over θ) and choose the parameter"
+  },
+  {
+   "question": "What is maximum a posteriori (MAP) estimation?",
+   "category": "concept",
+   "truth_pages": [
+    274,
+    306
+   ],
+   "cited_pages": [
+    306,
+    275,
+    309,
+    274,
+    296
+   ],
+   "answered": true,
+   "citation_hit": true,
+   "key_terms_present": true,
+   "seconds": 10.1,
+   "answer_excerpt": "Maximum a posteriori (MAP) estimation is a procedure in which parameters are sought that maximize the posterior distribution, p(θ|X,Y), instead of maximizing the likelihood (p. 306). It is also described as estimating the minimum of the negative log-posterior (p. 275).\n\nKey aspects of MAP estimation"
+  },
+  {
+   "question": "How does the EM algorithm fit a Gaussian mixture model?",
+   "category": "algorithm",
+   "truth_pages": [
+    366,
+    373
+   ],
+   "cited_pages": [
+    368,
+    354,
+    355,
+    374,
+    356,
+    359,
+    209
+   ],
+   "answered": true,
+   "citation_hit": true,
+   "key_terms_present": true,
+   "seconds": 10.2,
+   "answer_excerpt": "The Expectation-Maximization (EM) algorithm fits a Gaussian Mixture Model (GMM) by iteratively updating the GMM's parameters to represent an unknown data distribution (mml-book.pdf, p. 354, 356). A GMM is a density model that combines a finite Gaussian mixture, whose parameters include K means (µ_k)"
+  },
+  {
+   "question": "What does PCA maximize when choosing the principal subspace?",
+   "category": "concept",
+   "truth_pages": [
+    326,
+    327,
+    329
+   ],
+   "cited_pages": [
+    327,
+    340,
+    345,
+    351,
+    329,
+    323,
+    338,
+    342
+   ],
+   "answered": true,
+   "citation_hit": true,
+   "key_terms_present": true,
+   "seconds": 5.1,
+   "answer_excerpt": "When choosing the principal subspace, PCA maximizes the variance of the projected data (p. 327, p. 340). It aims to find a lower-dimensional subspace that maintains as much variance (spread of the data) as possible when the data is projected onto it (p. 327). This is achieved by selecting the eigenv"
+  },
+  {
+   "question": "What is the kernel trick in support vector machines?",
+   "category": "concept",
+   "truth_pages": [
+    66,
+    79,
+    101,
+    131,
+    322,
+    353,
+    395,
+    396,
+    399
+   ],
+   "cited_pages": [
+    101,
+    399,
+    396,
+    389,
+    380,
+    398,
+    390
+   ],
+   "answered": true,
+   "citation_hit": true,
+   "key_terms_present": true,
+   "seconds": 7.7,
+   "answer_excerpt": "The \"kernel trick\" allows inner products to be computed implicitly in a potentially infinite-dimensional feature space, without needing to explicitly know that feature space (p. 101). This technique enables the \"non-linearization\" of many machine learning algorithms (p. 101).\n\nIn the context of Supp"
+  },
+  {
+   "question": "What is the margin in a support vector machine?",
+   "category": "concept",
+   "truth_pages": [
+    269,
+    378,
+    380,
+    381,
+    382,
+    383,
+    384,
+    385,
+    386,
+    387,
+    388,
+    389
+   ],
+   "cited_pages": [
+    386,
+    383,
+    378,
+    380,
+    385,
+    390,
+    389
+   ],
+   "answered": true,
+   "citation_hit": true,
+   "key_terms_present": false,
+   "seconds": 2.6,
+   "answer_excerpt": "Sorry, I ran into an error generating a response. Please try again."
+  },
+  {
+   "question": "What does Example 4.5 compute?",
+   "category": "reference",
+   "truth_pages": [
+    113,
+    114
+   ],
+   "cited_pages": [
+    26,
+    168,
+    133,
+    143,
+    125,
+    51,
+    228
+   ],
+   "answered": true,
+   "citation_hit": false,
+   "key_terms_present": false,
+   "seconds": 2.0,
+   "answer_excerpt": "Sorry, I ran into an error generating a response. Please try again."
+  },
+  {
+   "question": "What does Definition 6.13 define?",
+   "category": "reference",
+   "truth_pages": [
+    214
+   ],
+   "cited_pages": [
+    201,
+    99,
+    50,
+    133,
+    193,
+    187,
+    198,
+    311
+   ],
+   "answered": false,
+   "citation_hit": false,
+   "key_terms_present": false,
+   "seconds": 61.4,
+   "answer_excerpt": "I couldn't find Definition 6.13 in the provided excerpts. The document includes Definitions 6.1, 6.3, 6.4, 6.5, 6.11, and others, but no entry labeled 6.13."
+  }
+ ],
+ "refusals": [
+  {
+   "question": "Who is the author's favourite football team?",
+   "refused": true,
+   "seconds": 1.6,
+   "answer_excerpt": "I couldn't find this in your document(s). Try rephrasing your question, or double-check that the right document is selected for this chat."
+  },
+  {
+   "question": "What does the book say about transformers or ChatGPT?",
+   "refused": true,
+   "seconds": 1.2,
+   "answer_excerpt": "I couldn't find this in your document(s). Try rephrasing your question, or double-check that the right document is selected for this chat."
+  },
+  {
+   "question": "What is the capital of France?",
+   "refused": true,
+   "seconds": 1.3,
+   "answer_excerpt": "I couldn't find this in your document(s). Try rephrasing your question, or double-check that the right document is selected for this chat."
+  },
+  {
+   "question": "Give me a recipe for chicken biryani.",
+   "refused": true,
+   "seconds": 1.5,
+   "answer_excerpt": "I couldn't find this in your document(s). Try rephrasing your question, or double-check that the right document is selected for this chat."
+  },
+  {
+   "question": "Who won the 2022 FIFA World Cup?",
+   "refused": true,
+   "seconds": 1.1,
+   "answer_excerpt": "I couldn't find this in your document(s). Try rephrasing your question, or double-check that the right document is selected for this chat."
+  },
+  {
+   "question": "What is Apple's current stock price?",
+   "refused": true,
+   "seconds": 2.4,
+   "answer_excerpt": "I couldn't find this in your document(s). Try rephrasing your question, or double-check that the right document is selected for this chat."
+  },
+  {
+   "question": "How do I build a website with the Django framework?",
+   "refused": true,
+   "seconds": 1.3,
+   "answer_excerpt": "I couldn't find this in your document(s). Try rephrasing your question, or double-check that the right document is selected for this chat."
+  },
+  {
+   "question": "What does the book say about blockchain mining?",
+   "refused": false,
+   "seconds": 1.9,
+   "answer_excerpt": "Sorry, I ran into an error generating a response. Please try again."
+  }
+ ],
+ "explain": [
+  {
+   "selection_type": "term",
+   "selection": "positive definite",
+   "page": 79,
+   "classified_as": "term",
+   "ok": false,
+   "seconds": 2.8,
+   "key_points": 0,
+   "has_example": false,
+   "explanation_excerpt": "The AI service didn't respond. Please try again in a moment."
+  },
+  {
+   "selection_type": "sentence",
+   "selection": "This is often difficult to describe.Second,itisoftennotpossibletocomputetheposteriordistribu- tionanalytically.However,therearesomepriorsthatarecomputationally ",
+   "page": 214,
+   "classified_as": "sentence",
+   "ok": true,
+   "seconds": 8.8,
+   "key_points": 4,
+   "has_example": true,
+   "explanation_excerpt": "This sentence explains two main challenges when working with Bayes' theorem. First, it's often difficult to put your initial knowledge about a problem into a mathematical form called a \"prior.\" Second, it's frequently impossible to calculate the \"posterior\" (your updated belief a"
+  },
+  {
+   "selection_type": "formula",
+   "selection": "= det(D) = d (4.63b)",
+   "page": 125,
+   "classified_as": "code",
+   "ok": true,
+   "seconds": 1.2,
+   "key_points": 4,
+   "has_example": true,
+   "explanation_excerpt": "The line says that the determinant of the matrix D is represented by the symbol d, as shown in equation 4.63b. It is just a notation, not a calculation. This helps later when the text talks about using the SVD to compute determinants efficiently."
+  }
+ ]
+}

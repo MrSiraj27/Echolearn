@@ -80,14 +80,14 @@ async function main() {
     log("backend/venv already exists — skipping venv creation.");
   }
 
-  const pip = isWindows
-    ? path.join(backendDir, "venv", "Scripts", "pip.exe")
-    : path.join(backendDir, "venv", "bin", "pip");
-  run(pip, ["install", "--upgrade", "pip"], backendDir);
-  run(pip, ["install", "-r", "requirements.txt"], backendDir);
+  // "python -m pip": on Windows pip.exe cannot replace itself, so "pip install --upgrade pip" fails.
+  const vpy = venvPython();
+  run(vpy, ["-m", "pip", "install", "--upgrade", "pip"], backendDir);
+  run(vpy, ["-m", "pip", "install", "-r", "requirements.txt"], backendDir);
   ensureEnvFile(backendDir, ".env.example", ".env");
 
   log("Setup complete!");
+  if (process.env.ECHOLEARN_ONE_CLICK) return; // setup.bat does the remaining steps itself
   console.log(`
 Next steps:
   1. Fill in real values in backend/.env — DATABASE_URL, JWT_SECRET, GROQ_API_KEY,

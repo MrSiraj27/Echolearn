@@ -57,6 +57,9 @@ def run_tests() -> dict:
     for m in re.finditer(r"test_([A-Z]+\d+)_\w+ \([^)]*\) \.\.\. (ok|FAIL|ERROR|skipped[^\n]*)", text):
         tid, status = m.group(1), m.group(2)
         results[tid] = "PASS" if status == "ok" else ("SKIPPED" if status.startswith("skipped") else "FAIL")
+    for m in re.finditer(r"(test_[a-z]\w*) \([^)]*\) \.\.\. (?:[^\n]*\n)?(ok|FAIL|ERROR|skipped[^\n]*)", text):
+        name, status = m.group(1), m.group(2)       # newer suites: "@test_kinds"
+        results[name] = "PASS" if status == "ok" else ("SKIPPED" if status.startswith("skipped") else "FAIL")
     summary = re.search(r"Ran (\d+) tests", text)
     print(f"tests: {len(results)} parsed, ran={summary.group(1) if summary else '?'}; "
           f"{sum(v == 'PASS' for v in results.values())} pass")

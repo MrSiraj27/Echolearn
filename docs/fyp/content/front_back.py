@@ -6,11 +6,11 @@ TITLE = "EchoLearn: A Document-Grounded AI Study Assistant"
 GROUP_ID = "BSCS-F25-[___]"
 SUPERVISOR = "Mahreen Tariq"
 MEMBERS = [
-    ("03-134222-[___]", "Ibrahim Abdul Sami"),
-    ("03-134222-[___]", "Siraj Sadiq"),
-    ("03-134222-[___]", "Jarrar Hussain"),
+    ("03-134231-058", "Siraj Sadiq"),
+    ("03-134231-043", "Ibrahim Abdul Sami"),
+    ("03-134231-045", "Jarrar Hussain"),
 ]
-COVER_DATE = "October 2026"
+COVER_DATE = "November 2026"
 CERT_DATE = "[Date]"
 
 DEDICATION = ("To our families, who put up with our schedules and our laptops at the dinner table. And to every "
@@ -29,16 +29,19 @@ ABSTRACT = (
     "Word, PowerPoint, text, spreadsheet, image, audio or video files, and the system extracts the text (using OCR "
     "for scanned pages and Whisper for recordings), indexes it, and answers questions in text or voice. Every "
     "answer is tied to the pages it came from, and the system says so when the documents do not contain the "
-    "answer. The same material is used to generate quizzes, flashcards scheduled with the SM-2 algorithm, "
-    "day-by-day study plans, a tutor mode that gives hints in steps, revision sheets and practice papers, and "
-    "answers can be explained again in Urdu or Roman Urdu. The web client is built with Next.js, the backend with "
-    "FastAPI and PostgreSQL, and a Flutter application provides a mobile client. Answers come from open-weight "
-    "models served by Groq, with Gemini as a fallback. A purely semantic search could not find numbered items "
-    "such as a hadith number. We therefore combined vector search with BM25 keyword search and a reference lookup, "
-    "merged by reciprocal rank fusion. On a collection of seven volumes (6,233 chunks), dense search alone found "
-    "0 of 60 numbered items and the hybrid method found 60 of 60. An automated suite of 41 tests covers security, "
-    "quotas, spaced repetition, chunking and the API. The system runs on free-tier hosting, and a formal study "
-    "with students is left as future work."
+    "answer. Documents can be read inside the application, where any selected word, sentence or formula is "
+    "explained simply using the surrounding text. The same material is used to generate quizzes, flashcards "
+    "scheduled with the SM-2 algorithm, study plans, a tutor mode that gives hints in steps, revision sheets and "
+    "practice papers, and answers can be explained again in Urdu or Roman Urdu. The web client is built with "
+    "Next.js, the backend with FastAPI and PostgreSQL, and a Flutter application provides a mobile client. Answers "
+    "come from open-weight models served by Groq, with Gemini as a fallback. Because a purely semantic search could "
+    "not find exact passages or numbered items, we combined vector search with BM25 keyword search and a "
+    "reference lookup, merged by reciprocal rank fusion. On the 417-page textbook Mathematics for Machine "
+    "Learning this raised the retrieval of exact passages from 23 of 60 to 60 of 60 at a cost of about one "
+    "millisecond per query. On the same book, processed in about two minutes, every answer the system gave cited "
+    "a correct page and every unanswerable question that reached the model was declined. An automated suite of 76 tests covers security, quotas, spaced repetition, chunking, status "
+    "transitions, the reader and the API, and all pass. The system runs on free-tier hosting, whose daily model "
+    "limits are its main constraint; a formal study with students is left as future work."
 )
 
 # ------------------------------------------------------------------------------------------
@@ -116,14 +119,19 @@ def appendices() -> list:
         ]),
         ("h2", "Appendix D: Retrieval Evaluation Protocol"),
         ("ul", [
-            "Collection: seven PDF volumes, 3,762 pages, 6,233 chunks (about 1,000 characters, 150 overlap).",
-            "Random seed 2026. Reference queries: 60 numbers drawn from the numbers that appear as a bracketed "
-            "marker in exactly one chunk, asked in two forms.",
+            "Document: Mathematics for Machine Learning, 417 pages, 1,226 chunks (about 1,000 characters, 150 "
+            "overlap), uploaded through the application as the local test account.",
+            "Random seed 2026. Concept questions: 20 fixed questions; correct pages are those holding the "
+            "defining heading (pages 15 to 399), and a hit is within one page.",
+            "Numbered labels: 60 drawn from the 221 Example, Definition and Theorem labels in the book, asked "
+            "as \"What does {label} say?\"; a hit is a returned chunk containing the label, ignoring spaces.",
             "Phrase queries: 60 chunks with more than 400 characters; five consecutive words longer than three "
             "letters were taken from each.",
-            "Depth: the top 8 chunks. System A: multi-document dense search, 3 chunks per document before "
-            "merging. System B: hybrid retrieval with one phrasing (no language model in the loop).",
-            "Metrics: correct chunk retrieved (strict); all five words present in any returned chunk (lenient); "
-            "mean rank of the correct chunk; median time per query after warm-up.",
+            "Depth: the top 8 chunks. System A: dense search. System B: hybrid retrieval with one phrasing (no "
+            "language model in the loop).",
+            "Metrics: correct page or chunk retrieved (strict); all five words present in any returned chunk "
+            "(lenient); median time per query after warm-up.",
+            "Answer evaluation (evidence/eval_mml.py): 22 answerable and 8 unanswerable questions through the "
+            "full pipeline, 25 seconds apart, plus three Explain with AI selections.",
         ]),
     ]

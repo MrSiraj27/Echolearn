@@ -22,14 +22,16 @@ BLOCKS = [
          ["FR-03", "A user can upload PDF, Word, PowerPoint, text, CSV, image, audio and video files, or add a "
                    "video by link, within the size allowed by the plan."],
          ["FR-04", "Uploaded files are processed in the background (parsing, OCR, transcription, chunking, "
-                   "embedding) and the user can see the status."],
+                   "embedding); the user can see the status and, when processing fails, the reason and a retry "
+                   "action."],
          ["FR-05", "Each document gets a short summary and suggested questions once it is ready."],
          ["FR-06", "Documents can be placed in folders and grouped into workspaces."],
          ["FR-07", "A user can chat over one document, a folder or a workspace and receive a streamed answer with "
                    "page or timestamp citations."],
          ["FR-08", "When the documents do not contain the answer the system says so and shows no sources."],
          ["FR-09", "A user can search inside a document and open the cited page with the passage highlighted."],
-         ["FR-10", "A user can ask by voice and listen to answers, with an optional cloned voice."],
+         ["FR-10", "A user can ask by voice and listen to answers, with an optional cloned voice recorded in the "
+                   "browser after confirming consent."],
          ["FR-11", "A user can request an answer again in Urdu or Roman Urdu."],
          ["FR-12", "A user can generate a diagram or an infographic from a chat."],
          ["FR-13", "A user can generate a quiz from documents, take it and see a score with explanations."],
@@ -42,6 +44,13 @@ BLOCKS = [
          ["FR-19", "A user can see analytics about activity, weak topics and quiz results."],
          ["FR-20", "Usage is limited by plan, and the user can see how much of each limit is used."],
          ["FR-21", "An administrator can manage users, plans, limits, reported content and platform settings."],
+         ["FR-22", "A user can read a processed document page by page in the application, search it, and select "
+                   "any word, sentence, formula or passage to get a simple explanation based on the surrounding "
+                   "text, with follow-up questions."],
+         ["FR-23", "A user can rate an answer as helpful or not helpful, or report it as incorrect with a note."],
+         ["FR-24", "A user can rename, move, retry and delete documents from a dedicated documents page."],
+         ["FR-25", "Signing up with an address that already has an account sends that address a sign-in "
+                   "reminder, without revealing on screen that the account exists."],
      ], [0.7, 5.55]),
 
     ("h3", "4.2.2 Non-functional requirements"),
@@ -62,6 +71,13 @@ BLOCKS = [
          ["NFR-07", "Maintainability", "Alembic migrations; one module per feature; pinned dependencies."],
          ["NFR-08", "Portability", "Vector store and file storage selected by configuration; Docker files "
                                   "for self-hosting."],
+         ["NFR-09", "Reliability of background work", "Jobs interrupted by a restart are marked failed at "
+                                                      "start-up; status changes only along allowed transitions; "
+                                                      "retries reuse already-extracted text."],
+         ["NFR-10", "Session continuity", "Access tokens are renewed in the background and every authenticated "
+                                         "request retries once after renewing an expired token."],
+         ["NFR-11", "Usable on every screen size", "One design system (DESIGN.md) and layouts tested at 375, "
+                                                  "768, 1024, 1280 and 1920 pixels wide."],
      ], [0.8, 2.0, 3.45]),
 
     ("h2", "4.3 System architecture"),
@@ -83,7 +99,7 @@ BLOCKS = [
 
     ("h2", "4.4 Database design"),
     ("h3", "4.4.1 Tables overview"),
-    ("p", "The PostgreSQL schema has 32 tables, created through 18 Alembic migrations. {tbl:tables} describes "
+    ("p", "The PostgreSQL schema has 33 tables, created through 19 Alembic migrations. {tbl:tables} describes "
           "the main groups; the full set is visible in the entity relationship diagram at the end of the "
           "chapter."),
     ("table", "tables", "Main database tables in EchoLearn",
@@ -92,10 +108,11 @@ BLOCKS = [
          ["users", "Accounts, roles and plan assignment", "email, password_hash, is_verified, plan_id, "
                                                           "custom_limits, is_blocked"],
          ["plans", "Plan names, prices and limits", "slug, price_monthly, limits (JSON)"],
-         ["documents", "Uploaded files and processing status", "filename, file_type, status, page_count, "
-                                                              "summary, folder_id"],
+         ["documents", "Uploaded files and processing status", "filename, file_type, status, error_message, "
+                                                              "page_count, file_size, summary, folder_id"],
          ["document_folders / workspaces", "Organising documents", "name, user_id; workspace_documents links"],
          ["chats / messages", "Conversations and their messages", "title, role, content, citations (JSON)"],
+         ["message_feedback", "One rating per user per answer", "message_id, user_id, rating, comment"],
          ["quizzes / quiz_attempts", "Generated quizzes and scored attempts", "questions (JSON), answers, score"],
          ["review_cards / review_card_states", "Flashcards and their SM-2 state", "ease_factor, interval_days, "
                                                                                  "repetitions, next_review_date"],
@@ -118,12 +135,20 @@ BLOCKS = [
     ("p", "Plan limits are a JSON object on the plan, and a user can carry a custom_limits object that overrides "
           "it key by key. A key set to null in the override means unlimited. All quota checks go through a single "
           "function that merges the two, so an override cannot be bypassed by reading the plan directly. "
-          "Documents have a status (uploaded, parsing, embedded, ready, failed) so that failures are visible and "
-          "an administrator can retry processing."),
+          "Documents have a status (uploaded, parsing, embedded, ready, failed) and, when processing fails, an "
+          "error_message written for the user (for example a password-protected or damaged PDF), so that "
+          "failures are visible and can be retried."),
+    ("p", "Several tables carry a status that moves through fixed states: documents, practice papers, past "
+          "papers, revision sheets, voice-clone jobs, study plans and sessions, and moderation reports. These "
+          "transitions are enforced in code rather than left implicit. A study session can only move from "
+          "pending to completed or skipped, and only while its plan is active; finishing the last session "
+          "completes the plan; a moderation report can be resolved only once; and a document can be retried "
+          "only after it has failed. Because background jobs do not survive a server restart, every job that "
+          "is still in progress at start-up is marked failed with an explanation, so nothing waits forever."),
 
     ("h2", "4.5 API design"),
     ("h3", "4.5.1 Endpoint groups"),
-    ("p", "The backend exposes 139 endpoints in 22 route groups plus a health check. Apart from the health "
+    ("p", "The backend exposes 147 endpoints in 17 route groups plus a health check. Apart from the health "
           "check and the sign-up, login, verification and password-reset routes under /auth, every endpoint "
           "requires a bearer token. {tbl:api} lists the groups and a few typical endpoints; the full list is the "
           "OpenAPI document that FastAPI publishes."),
@@ -131,9 +156,10 @@ BLOCKS = [
      ["Group", "Endpoints", "Examples"],
      [
          ["auth", "7", "POST /auth/signup, POST /auth/login, POST /auth/refresh-token"],
-         ["documents", "12", "POST /documents/upload, POST /documents/from-url, GET /documents/{id}/status"],
+         ["documents", "16", "POST /documents/upload, GET /documents/{id}/pages, POST /documents/{id}/explain, "
+                             "POST /documents/{id}/retry"],
          ["folders, workspaces", "9", "POST /folders/, POST /workspaces/{id}/documents"],
-         ["chats", "12", "POST /chats/{id}/message (streamed), POST /chats/{id}/explain, "
+         ["chats", "14", "POST /chats/{id}/message (streamed), PUT /chats/{id}/messages/{id}/feedback, "
                              "POST /chats/{id}/diagram"],
          ["quizzes", "4", "POST /quizzes/generate, POST /quizzes/{id}/submit"],
          ["review", "6", "GET /review/today, POST /review/{card_id}/submit"],
@@ -142,8 +168,8 @@ BLOCKS = [
          ["revision-sheets", "6", "POST /revision-sheets/, GET /revision-sheets/{id}/download"],
          ["practice-papers, past-papers", "13", "POST /practice-papers/generate, POST /past-papers/upload"],
          ["voice", "11", "POST /voice/speak, POST /voice/clone-request"],
-         ["analytics, users", "7", "GET /analytics/overview, GET /users/me/usage"],
-         ["admin-*", "30", "GET /admin/users/, PATCH /admin/plans/{id}, POST /admin/users/{id}/block"],
+         ["analytics, users", "8", "GET /analytics/overview, GET /users/me, GET /users/me/usage"],
+         ["admin-*", "32", "GET /admin/users/, GET /admin/system/feedback, POST /admin/system/index-health"],
      ], [1.6, 0.9, 3.75]),
     ("h3", "4.5.2 Authentication and authorisation"),
     ("p", "Login returns a short-lived access token (15 minutes) in the response body and sets a 7-day refresh "
@@ -153,22 +179,45 @@ BLOCKS = [
           "dependency that also checks the admin flag. Login and verification-email requests are rate limited "
           "per email address (5 attempts in 15 minutes) so that passwords cannot be guessed quickly. The login "
           "error is the same whether the email or the password is wrong, so the endpoint does not reveal which "
-          "emails are registered."),
+          "emails are registered. For the same reason, signing up with a registered address shows the usual "
+          "message on screen; the owner of the address receives an email instead (a fresh verification link "
+          "if the account is unverified, otherwise a sign-in reminder sent at most once every 15 minutes)."),
+    ("p", "Because access tokens are short-lived, the web client renews them in the background every 12 "
+          "minutes and when the browser tab becomes visible again. Every authenticated request, including the "
+          "streamed chat and tutor answers, file uploads and downloads, goes through one helper that renews an "
+          "expired token once and retries, so a long study session is not interrupted by an expired token."),
 
     ("h2", "4.6 Frontend architecture"),
     ("p", "The web client is a Next.js application with route groups: (auth) for sign-in pages, (chat) for the "
-          "main product screens, and admin for the console. It is written in TypeScript with Tailwind CSS and a "
-          "small set of shared components such as the sidebar, source viewer and modal dialogs."),
+          "main product screens, and admin for the console. It is written in TypeScript with Tailwind CSS. Every "
+          "signed-in screen shares one application shell: a dark navigation rail with labelled sections "
+          "(Dashboard, My Documents, AI Assistant, Document Reader, Tutor Mode, Quizzes, Study Plans, Practice "
+          "Papers, Revision Sheets, Analytics, Voice and Listening, Settings), the current plan and usage, and a "
+          "top bar with search, theme switch, notifications and the account menu. The dashboard brings the main "
+          "tasks onto one screen: recent documents, today's study plan, a reader and an AI assistant panel for "
+          "the selected document."),
     ("h3", "4.6.1 Shared state management"),
     ("p", "State is kept small. An authentication context holds the signed-in user and the in-memory access token; "
           "a Zustand store keeps the chat list and the active selection; the rest is local component state. "
           "There is no global cache layer. Requests go through one API helper that attaches the token and, when "
           "a call returns 401, refreshes the token once and retries."),
     ("h3", "4.6.2 Theming"),
-    ("p", "Light and dark themes are handled by next-themes with CSS variables, so components do not carry "
-          "their own colour logic. Diagrams are rendered in the browser from Mermaid text produced by the "
-          "backend, and infographics from a small JSON description."),
-    ("h3", "4.6.3 Mobile client"),
+    ("p", "The visual design follows a written design system (DESIGN.md): a warm cream canvas instead of pure "
+          "white, warm near-black dark surfaces, a serif typeface (Source Serif 4) for headings and reading, Inter "
+          "for the interface, and a single coral accent reserved for primary actions. The palette is defined as "
+          "theme tokens, so both light and dark themes, handled by next-themes, come from one place and "
+          "components do not carry their own colour logic. Layouts change with the screen width: on a phone the "
+          "navigation becomes a drawer and panels stack; on a laptop the reader and assistant sit side by side; "
+          "on a wide monitor the dashboard uses three columns. Diagrams are rendered in the browser from Mermaid "
+          "text produced by the backend, and infographics from a small JSON description."),
+    ("h3", "4.6.3 Document reader"),
+    ("p", "Text extracted from a PDF arrives one printed line at a time, with the chapter title repeated at the "
+          "top of each page and page numbers mixed in. Before display, the reader rebuilds each page: lines are "
+          "joined into paragraphs, words split by a hyphen at the end of a line are rejoined, headers that repeat "
+          "on many pages and bare page numbers are removed, short headline-like lines become headings (and are "
+          "listed as sections), and code is kept as a monospaced block with its line breaks. Search, highlights "
+          "and explanations all work on this rebuilt text. For PDFs an Original view shows the file itself."),
+    ("h3", "4.6.4 Mobile client"),
     ("p", "The Flutter application covers sign-in, documents, chat, study features and voice settings. It uses "
           "the same REST API as the web client, a provider-based state layer and a small API client that stores "
           "the token on the device. Admin features are web only."),
@@ -219,6 +268,18 @@ BLOCKS = [
           "plan is created in two steps: a preview that makes the one expensive model call and returns a "
           "proposal, then a confirmation that schedules the sessions deterministically without calling the "
           "model again."),
+
+    ("h3", "4.7.5 Explaining a selected passage"),
+    ("p", "When a reader selects text and asks for an explanation, the selection is first classified as a term, "
+          "a sentence, a passage, code or a formula, because each needs a different kind of explanation (a "
+          "meaning and an example for a term, a step-by-step reading for code, the role of each symbol for a "
+          "formula). The prompt then carries the text around the selection on its page and up to four related "
+          "passages from the same document found by the hybrid retriever, so a word is explained as the "
+          "document uses it rather than in isolation. All document text is wrapped as data and the model is "
+          "told never to follow instructions inside it. The model returns a simple explanation, key points, an "
+          "example, difficult terms and suggested follow-up questions as JSON, which is validated before it is "
+          "shown. Follow-up questions use the same context. Only text is sent: images inside documents are not "
+          "passed to a vision model, and the interface does not claim otherwise."),
 
     ("h2", "4.8 Use case diagram"),
     ("p", "{fig:usecase} shows the two actors. A student uses the document, study and voice features; an "

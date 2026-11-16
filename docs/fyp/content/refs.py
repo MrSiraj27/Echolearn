@@ -63,4 +63,6 @@ REFS = {
     "anki": '"Anki: Powerful, intelligent flashcards." [Online]. Available: https://apps.ankiweb.net',
     "quizlet": 'Quizlet, "Quizlet." [Online]. Available: https://quizlet.com',
     "chatpdf": 'ChatPDF, "ChatPDF." [Online]. Available: https://www.chatpdf.com',
+    "mml": 'M. P. Deisenroth, A. A. Faisal and C. S. Ong, Mathematics for Machine Learning. Cambridge, UK: '
+           "Cambridge University Press, 2020. [Online]. Available: https://mml-book.github.io",
 }

@@ -57,9 +57,11 @@ BLOCKS = [
         "Generate quizzes, flashcards with SM-2 spaced repetition, study plans, revision sheets and practice papers "
         "from the uploaded material.",
         "Provide a tutor mode that asks questions first and gives hints in steps instead of the answer.",
+        "Provide an in-app document reader in which any selected word, sentence, formula or passage can be "
+        "explained simply, using the surrounding text of the document.",
         "Support voice input and spoken answers, and explanations in Urdu and Roman Urdu.",
         "Add accounts, plans with usage limits, and an administration console for users, limits and moderation.",
-        "Test the core logic automatically and measure the retrieval quality on a real document collection.",
+        "Test the core logic automatically and measure retrieval and answer quality on real, large documents.",
     ]),
 
     ("h2", "1.4 Scope of the project"),
@@ -79,7 +81,8 @@ BLOCKS = [
           "flashcard and planning work that students usually skip is generated from the same files in a few "
           "seconds. The third is cost. The system runs on free-tier hosting and on open-weight models served by "
           "Groq, so the same design can be offered to students who cannot pay for commercial study tools."),
-    ("p", "The retrieval design is not tied to one subject. We tested it on seven volumes of a religious text, but "
+    ("p", "The retrieval design is not tied to one subject. It was built while working with a multi-volume "
+          "religious text and evaluated on a 417-page mathematics textbook, and "
           "the same approach (meaning-based search combined with keyword and reference lookup) applies to law "
           "reports, lecture notes or technical manuals, where users also ask for \"section 12\" or \"page 40\" and "
           "expect that exact place."),
@@ -88,8 +91,8 @@ BLOCKS = [
     ("p", "Chapter 2 relates the project to the United Nations Sustainable Development Goals. Chapter 3 reviews the "
           "existing tools and the research behind retrieval-augmented generation, LLMs in education and spaced "
           "repetition. Chapter 4 sets out the requirements, architecture, database and API design. Chapter 5 "
-          "describes how each part was implemented and the problems we ran into. Chapter 6 reports the tests and a "
-          "measured comparison of retrieval methods. Chapter 7 concludes with lessons learned and future work. The "
+          "describes how each part was implemented and the problems we ran into. Chapter 6 reports the tests and "
+          "measured evaluations of retrieval and answers on a 417-page textbook. Chapter 7 concludes with lessons learned and future work. The "
           "references and appendices follow."),
 
     # ------------------------------------------------------------------ Chapter 2
