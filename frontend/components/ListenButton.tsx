@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Volume2, Square, Loader2, User, Sparkles } from "lucide-react";
 import { useSpeech } from "@/lib/speech-context";
-import { api, ApiError } from "@/lib/api";
+import { api, ApiError, authFetch } from "@/lib/api";
 
 interface CloneRequestResponse {
   status: "done" | "queued";
@@ -142,13 +142,7 @@ export default function ListenButton({ text, messageId }: { text: string; messag
   }
 
   async function playAudioFromUrl(path: string) {
-    const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
-    const { getAccessToken } = await import("@/lib/api");
-    const token = getAccessToken();
-    const res = await fetch(`${apiUrl}${path}`, {
-      headers: token ? { Authorization: `Bearer ${token}` } : {},
-      credentials: "include",
-    });
+    const res = await authFetch(path);
     if (!res.ok) throw new ApiError(res.status, "Couldn't load cloned audio.");
     const blob = await res.blob();
     audioCache.set(cloneKey(messageId), blob);
@@ -277,17 +271,9 @@ export default function ListenButton({ text, messageId }: { text: string; messag
     setState("loading");
 
     try {
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
-      const { getAccessToken } = await import("@/lib/api");
-      const token = getAccessToken();
-
-      const res = await fetch(`${apiUrl}/voice/speak`, {
+      const res = await authFetch("/voice/speak", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        },
-        credentials: "include",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ text, message_id: messageId, voice_id: voiceId }),
       });
 

@@ -4,13 +4,12 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, Trash2, Upload, Loader2, Check } from "lucide-react";
 import { clearClonedAudioCache } from "@/components/ListenButton";
-import { api, ApiError } from "@/lib/api";
+import { api, ApiError, authFetch } from "@/lib/api";
 import { useSpeech } from "@/lib/speech-context";
 import { useChatStore } from "@/lib/chat-store";
 import { AppLanguage, ReviewSettingsResponse } from "@/lib/types";
 import VoiceSampleRecorder, { MAX_SAMPLE_SECONDS, MIN_SAMPLE_SECONDS } from "@/components/VoiceSampleRecorder";
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
 interface MyUsageResponse {
   quotas: { key: string; limit: number | boolean | null; current_usage: number; resets_in_human: string | null }[];
@@ -61,12 +60,7 @@ export default function SettingsPage() {
 
   async function loadPreview() {
     try {
-      const { getAccessToken } = await import("@/lib/api");
-      const token = getAccessToken();
-      const res = await fetch(`${API_URL}/voice/sample/audio`, {
-        headers: token ? { Authorization: `Bearer ${token}` } : {},
-        credentials: "include",
-      });
+      const res = await authFetch("/voice/sample/audio");
       if (!res.ok) return;
       const url = URL.createObjectURL(await res.blob());
       setPreviewUrl((old) => {
@@ -130,16 +124,9 @@ export default function SettingsPage() {
     const formData = new FormData();
     formData.append("file", new File([wav], "voice_sample.wav", { type: "audio/wav" }));
     formData.append("consent", "true");
-    const { getAccessToken } = await import("@/lib/api");
-    const token = getAccessToken();
     let res: Response;
     try {
-      res = await fetch(`${API_URL}/voice/upload-sample`, {
-        method: "POST",
-        headers: token ? { Authorization: `Bearer ${token}` } : {},
-        credentials: "include",
-        body: formData,
-      });
+      res = await authFetch("/voice/upload-sample", { method: "POST", body: formData });
     } catch {
       throw new Error("Couldn't reach the server. Check your connection and try again.");
     }

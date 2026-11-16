@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { Download, Loader2 } from "lucide-react";
-import { getAccessToken } from "@/lib/api";
+import { authFetch } from "@/lib/api";
 
 export default function ExportMenu({ chatId, chatTitle }: { chatId: string; chatTitle: string | null }) {
   const [open, setOpen] = useState(false);
@@ -25,12 +25,7 @@ export default function ExportMenu({ chatId, chatTitle }: { chatId: string; chat
     setOpen(false);
 
     try {
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
-      const token = getAccessToken();
-      const res = await fetch(`${apiUrl}/chats/${chatId}/export?format=${format}`, {
-        headers: token ? { Authorization: `Bearer ${token}` } : {},
-        credentials: "include",
-      });
+      const res = await authFetch(`/chats/${chatId}/export?format=${format}`);
 
       if (!res.ok) {
         throw new Error("Export failed. Please try again.");

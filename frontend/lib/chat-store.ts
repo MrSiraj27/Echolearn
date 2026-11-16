@@ -273,17 +273,12 @@ export const useChatStore = create<ChatState>((set, get) => ({
       streamingContent: "",
     }));
 
-    const { getAccessToken } = await import("./api");
-    const token = getAccessToken();
-    const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
-
-    const response = await fetch(`${apiUrl}/chats/${chatId}/message`, {
+    const { authFetch } = await import("./api");
+    // authFetch renews an expired login token and retries, so long sessions don't fail
+    // with "Invalid or expired token".
+    const response = await authFetch(`/chats/${chatId}/message`, {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      },
-      credentials: "include",
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ content }),
     });
 

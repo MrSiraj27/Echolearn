@@ -9,7 +9,7 @@ import { AnimatePresence } from "framer-motion";
 import { ArrowLeft, BookOpen, Check, Download, Lightbulb, Loader2, Send, SkipForward, Sparkles } from "lucide-react";
 import SourceViewer from "@/components/SourceViewer";
 import { TranslationBody } from "@/components/LanguageExplain";
-import { api, ApiError, getAccessToken } from "@/lib/api";
+import { api, ApiError, authFetch } from "@/lib/api";
 import { Citation, TutorSession, TutorSourceRef, TutorSummary, TutorTurn } from "@/lib/types";
 
 const PROSE =
@@ -161,13 +161,10 @@ export default function TutorSessionPage() {
     setPendingStudent(content);
     setDraft("");
 
-    const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
-    const token = getAccessToken();
     try {
-      const res = await fetch(`${apiUrl}/tutor/sessions/${sessionId}/message`, {
+      const res = await authFetch(`/tutor/sessions/${sessionId}/message`, {
         method: "POST",
-        headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) },
-        credentials: "include",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ content }),
       });
       if (!res.ok || !res.body) {

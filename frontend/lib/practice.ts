@@ -1,7 +1,6 @@
-import { getAccessToken, tryRefresh } from "@/lib/api";
+import { authFetch } from "@/lib/api";
 import { PastPaperItem, PatternSource, PracticeQuestionType } from "@/lib/types";
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
 export const PRACTICE_DISCLAIMER =
   "This is an AI-generated practice paper based on your materials and any patterns you provided. It is a study aid, not a guaranteed prediction of your actual exam.";
@@ -24,15 +23,6 @@ export function patternBadgeText(source: PatternSource, note: string | null): st
   return note || PATTERN_BADGE[source];
 }
 
-async function authedFetch(path: string, init: RequestInit, retry = true): Promise<Response> {
-  const token = getAccessToken();
-  const headers: Record<string, string> = { ...(init.headers as Record<string, string>) };
-  if (token) headers["Authorization"] = `Bearer ${token}`;
-  const res = await fetch(`${API_URL}${path}`, { ...init, headers, credentials: "include" });
-  if (res.status === 401 && retry && (await tryRefresh())) return authedFetch(path, init, false);
-  return res;
-}
-
 async function errorDetail(res: Response, fallback: string): Promise<string> {
   try {
     const data = await res.json();
@@ -46,7 +36,7 @@ export async function uploadPastPaper(file: File, examName?: string): Promise<Pa
   const form = new FormData();
   form.append("file", file);
   if (examName?.trim()) form.append("exam_name", examName.trim());
-  const res = await authedFetch("/past-papers/upload", { method: "POST", body: form });
+  const res = await authFetch("/past-papers/upload", { method: "POST", body: form });
   if (!res.ok) throw new Error(await errorDetail(res, "Upload failed. Please try again."));
   return res.json();
 }
@@ -57,7 +47,7 @@ export async function downloadPaperPdf(
   title: string,
   variant: "question" | "answer_key"
 ): Promise<void> {
-  const res = await authedFetch(`/practice-papers/${paperId}/export?format=pdf&variant=${variant}`, {
+  const res = await authFetch(`/practice-papers/${paperId}/export?format=pdf&variant=${variant}`, {
     method: "GET",
   });
   if (!res.ok) throw new Error(await errorDetail(res, "Download failed. Please try again."));

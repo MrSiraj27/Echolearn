@@ -12,13 +12,8 @@ export const LANGUAGE_NAMES: Record<SheetLanguage, string> = {
  * won't work: fetch it with the token, then hand the bytes to the browser as a file.
  */
 export async function downloadSheetPdf(sheetId: string, title: string): Promise<void> {
-  const { getAccessToken } = await import("./api");
-  const token = getAccessToken();
-  const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
-  const res = await fetch(`${apiUrl}/revision-sheets/${sheetId}/download`, {
-    headers: token ? { Authorization: `Bearer ${token}` } : {},
-    credentials: "include",
-  });
+  const { authFetch } = await import("./api");
+  const res = await authFetch(`/revision-sheets/${sheetId}/download`);
   if (!res.ok) {
     const detail = await res
       .json()

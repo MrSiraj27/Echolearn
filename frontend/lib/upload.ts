@@ -1,9 +1,7 @@
 "use client";
 
-import { getAccessToken } from "@/lib/api";
+import { authFetch } from "@/lib/api";
 import { useChatStore } from "@/lib/chat-store";
-
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
 export const UPLOAD_ACCEPT =
   ".pdf,.docx,.pptx,.txt,.csv,.png,.jpg,.jpeg,.mp3,.wav,.m4a,.mp4,.mov";
@@ -14,15 +12,9 @@ export async function uploadDocument(file: File, folderId?: string | null): Prom
   const formData = new FormData();
   formData.append("file", file);
   if (folderId) formData.append("folder_id", folderId);
-  const token = getAccessToken();
   let res: Response;
   try {
-    res = await fetch(`${API_URL}/documents/upload`, {
-      method: "POST",
-      headers: token ? { Authorization: `Bearer ${token}` } : {},
-      credentials: "include",
-      body: formData,
-    });
+    res = await authFetch("/documents/upload", { method: "POST", body: formData });
   } catch {
     throw new Error("Couldn't reach the server. Check your connection and try again.");
   }

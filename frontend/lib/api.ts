@@ -1,9 +1,13 @@
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
 let accessToken: string | null = null;
+// When the current access token was issued (ms). Access tokens live 15 minutes on the
+// server, so the app renews them in the background before they expire.
+let tokenIssuedAt = 0;
 
 export function setAccessToken(token: string | null) {
   accessToken = token;
+  tokenIssuedAt = token ? Date.now() : 0;
 }
 
 export function getAccessToken() {
@@ -70,7 +74,35 @@ async function request<T>(path: string, options: RequestOptions = {}, retry = tr
   return res.json();
 }
 
-async function tryRefresh(): Promise<boolean> {
+// Concurrent callers share one in-flight refresh instead of each sending their own.
+let refreshing: Promise<boolean> | null = null;
+
+function tryRefresh(): Promise<boolean> {
+  if (!refreshing) refreshing = doRefresh().finally(() => (refreshing = null));
+  return refreshing;
+}
+
+/** Renew the access token if it's older than `maxAgeMs` (e.g. after the laptop slept). */
+export async function refreshIfStale(maxAgeMs: number): Promise<void> {
+  if (accessToken && Date.now() - tokenIssuedAt > maxAgeMs) await tryRefresh();
+}
+
+/**
+ * fetch() for authenticated calls that need the raw Response (streaming, file uploads,
+ * downloads). Adds the access token, and if the server says it expired (401), renews it
+ * once and retries. Use this instead of calling fetch() with a hand-built Authorization
+ * header, which fails as soon as the 15-minute token runs out.
+ */
+export async function authFetch(path: string, init: RequestInit = {}, retry = true): Promise<Response> {
+  const url = /^https?:\/\//.test(path) ? path : `${API_URL}${path}`;
+  const headers: Record<string, string> = { ...(init.headers as Record<string, string>) };
+  if (accessToken) headers["Authorization"] = `Bearer ${accessToken}`;
+  const res = await fetch(url, { ...init, headers, credentials: "include" });
+  if (res.status === 401 && retry && (await tryRefresh())) return authFetch(path, init, false);
+  return res;
+}
+
+async function doRefresh(): Promise<boolean> {
   try {
     const res = await fetch(`${API_URL}/auth/refresh-token`, {
       method: "POST",

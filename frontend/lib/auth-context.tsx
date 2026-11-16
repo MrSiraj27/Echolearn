@@ -1,7 +1,7 @@
 "use client";
 
 import { createContext, useContext, useEffect, useState, ReactNode, useCallback } from "react";
-import { setAccessToken, tryRefresh } from "./api";
+import { refreshIfStale, setAccessToken, tryRefresh } from "./api";
 
 const SESSION_HINT_KEY = "echolearn_had_session";
 
@@ -45,6 +45,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
     });
   }, []);
+
+  // Access tokens expire after 15 minutes. Renew them in the background so long sessions,
+  // streaming answers and media links (which carry the token in the URL) keep working, and
+  // catch up straight away when the tab comes back after being hidden or the laptop slept.
+  useEffect(() => {
+    if (!isAuthenticated) return;
+    const timer = setInterval(() => void tryRefresh(), 12 * 60 * 1000);
+    const onVisible = () => {
+      if (document.visibilityState === "visible") void refreshIfStale(10 * 60 * 1000);
+    };
+    document.addEventListener("visibilitychange", onVisible);
+    window.addEventListener("focus", onVisible);
+    return () => {
+      clearInterval(timer);
+      document.removeEventListener("visibilitychange", onVisible);
+      window.removeEventListener("focus", onVisible);
+    };
+  }, [isAuthenticated]);
 
   const login = useCallback((token: string) => {
     setAccessToken(token);
